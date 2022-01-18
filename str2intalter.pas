@@ -1,6 +1,6 @@
 {****************************************************************************
 *                                                                           *
-*   Alternative set of conversion routines for 32/64-bit CPUs.              *
+*  Alternative set of string-to-int conversion routines for 32/64-bit CPUs. *
 *                                                                           *
 *   Copyright(c) 2022 A.Koverdyaev(avk)                                     *
 *                                                                           *
@@ -19,6 +19,7 @@ unit Str2IntAlter;
 {$MODE OBJFPC}{$H+}
 
 interface
+
 {
   parsing rules are basically the same as in the built-in Val():
     leading spaces and tabs are allowed;
@@ -26,8 +27,7 @@ interface
     binary notation can be prefixed with %(Pascal), 0b, or 0B(C, Python ...);
     octal notation can be prefixed with &(Pascal), 0(C, Python 2), 0O or 0o(Python 3, Nim);
     hex notation can use the same prefixes as Val();
-  if the Try...2Int() function returns False, then aValue is undefined
-}
+  if the Try...2Int() function returns False, then aValue is undefined }
   function TryChars2Int(const a: array of char; out aValue: Byte): Boolean;
   function TryChars2Int(const a: array of char; out aValue: ShortInt): Boolean;
   function TryChars2Int(const a: array of char; out aValue: Word): Boolean;
