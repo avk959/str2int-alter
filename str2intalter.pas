@@ -100,6 +100,33 @@ interface
   function TryStr2QWordDef(p: PChar; aCount: SizeInt; aDefault: QWord = 0): QWord; inline;
   function TryStr2Int64Def(p: PChar; aCount: SizeInt; aDefault: Int64 = 0): Int64; inline;
 
+{ some support for digit group separators, only for strings in decimal notation;
+  aSep is a separator for groups of digits(for example an underscore or an apostrophe);
+    a separator can not be less than #32;
+    the string cannot start with a separator;
+    leading spaces and tabs are allowed;
+    leading zeros are not allowed, including in case of zero followed by separator(s);
+    a minus sign is not allowed for unsigned integers }
+  function TryDChars2Int(const a: array of char; aSep: char; out aValue: LongWord): Boolean;
+  function TryDChars2Int(const a: array of char; aSep: char; out aValue: LongInt): Boolean;
+  function TryDChars2Int(const a: array of char; aSep: char; out aValue: QWord): Boolean;
+  function TryDChars2Int(const a: array of char; aSep: char; out aValue: Int64): Boolean;
+
+  function TryDChars2DWordDef(const a: array of char; aSep: char; aDefault: DWord = 0): DWord;
+  function TryDChars2IntDef(const a: array of char; aSep: char; aDefault: LongInt = 0): LongInt;
+  function TryDChars2QWordDef(const a: array of char; aSep: char; aDefault: QWord = 0): QWord;
+  function TryDChars2Int64Def(const a: array of char; aSep: char; aDefault: Int64 = 0): Int64;
+
+  function TryDStr2Int(const s: string; aSep: char; out aValue: LongWord): Boolean; inline;
+  function TryDStr2Int(const s: string; aSep: char; out aValue: LongInt): Boolean; inline;
+  function TryDStr2Int(const s: string; aSep: char; out aValue: QWord): Boolean; inline;
+  function TryDStr2Int(const s: string; aSep: char; out aValue: Int64): Boolean; inline;
+
+  function TryDStr2DWordDef(const s: string; aSep: char; aDefault: DWord = 0): DWord; inline;
+  function TryDStr2IntDef(const s: string; aSep: char; aDefault: LongInt = 0): LongInt; inline;
+  function TryDStr2QWordDef(const s: string; aSep: char; aDefault: QWord = 0): QWord; inline;
+  function TryDStr2Int64Def(const s: string; aSep: char; aDefault: Int64 = 0): Int64; inline;
+
 implementation
 {$Q-}{$B-}{$R-}{$J-}{$COPERATORS ON}{$POINTERMATH ON}
 
@@ -1033,6 +1060,367 @@ end;
 function TryStr2Int64Def(p: PChar; aCount: SizeInt; aDefault: Int64): Int64;
 begin
   if not TryChars2Int(p[0..Pred(aCount)], Result) then
+    Result := aDefault;
+end;
+
+function DecCharToDWord(p: PChar; aCount: SizeInt; aSep: Char; out aValue: DWord): Boolean;
+var
+{$IFDEF CPU64}
+  v: QWord;
+  I, t: DWord;
+{$ELSE}
+  I, v, t: DWord;
+{$ENDIF}
+  pEnd: PChar;
+begin
+  // here assumed aCount > 0 and p^ is a decimal char
+  v := Table[p^];
+  pEnd := p + aCount;
+  Inc(p);
+  I := 1;
+{$IFDEF CPU64}
+  while p < pEnd do
+    begin
+      if p^ = aSep then
+        begin
+          Inc(p);
+          continue;
+        end;
+      if I > 9 then exit(False);
+      t := Table[p^];
+      if t > 9 then exit(False);
+      v := v * 10 + t;
+      Inc(p);
+      Inc(I);
+    end;
+  if v > High(DWord) then exit(False);
+{$ELSE}
+  while p < pEnd do
+    begin
+      if p^ = aSep then
+        begin
+          Inc(p);
+          continue;
+        end;
+      if I > 9 then exit(False);
+      t := Table[p^];
+      if t > 9 then exit(False);
+      if I < 9 then
+        v := v * 10 + t
+      else
+        begin
+          if v > 429496729 then exit(False);
+          v := v * 10 + t;
+          if v < t then exit(False);
+        end;
+      Inc(p);
+      Inc(I);
+    end;
+{$ENDIF}
+  aValue := v;
+  Result := True;
+end;
+
+function TryDChars2Int(const a: array of char; aSep: char; out aValue: LongWord): Boolean;
+var
+  Count: SizeInt;
+  p: PChar;
+begin
+  Result := False;
+  if (Length(a) = 0) or (aSep < ' ') then exit;
+  Count := Length(a);
+  p := @a[0];
+  while p^ in [#9, ' '] do
+    begin
+      Inc(p);
+      Dec(Count);
+      if Count = 0 then exit;
+    end;
+  if p^ = '+' then
+    begin
+      Inc(p);
+      Dec(Count);
+      if Count = 0 then exit;
+    end;
+  if (p^ = '0') and (Count = 1) then
+    begin
+      aValue := 0;
+      exit(True);
+    end;
+  if not (p^ in ['1'..'9']) then exit;
+  Result := DecCharToDWord(p, Count, aSep, aValue);
+end;
+
+function TryDChars2Int(const a: array of char; aSep: char; out aValue: LongInt): Boolean;
+var
+  v: DWord;
+  Count: SizeInt;
+  p: PChar;
+  IsNeg: Boolean;
+begin
+  Result := False;
+  if (Length(a) = 0) or (aSep < ' ') then exit;
+  Count := Length(a);
+  p := @a[0];
+  while p^ in [#9, ' '] do
+    begin
+      Inc(p);
+      Dec(Count);
+      if Count = 0 then exit;
+    end;
+  if p^ = '-' then
+    begin
+      IsNeg := True;
+      Inc(p);
+      Dec(Count);
+      if Count = 0 then exit;
+    end
+  else
+    begin
+      IsNeg := False;
+      if p^ = '+' then
+        begin
+          Inc(p);
+          Dec(Count);
+          if Count = 0 then exit;
+        end;
+    end;
+  if (p^ = '0') and (Count = 1) then
+    begin
+      aValue := 0;
+      exit(True);
+    end;
+  if not (p^ in ['1'..'9']) then exit;
+  v := 0;
+  Result := DecCharToDWord(p, Count, aSep, v);
+  if not Result then exit;
+  if IsNeg then
+    begin
+      if v > Succ(DWord(High(LongInt))) then exit(False);
+      aValue := -LongInt(v);
+    end
+  else
+    begin
+      if v > DWord(High(LongInt)) then exit(False);
+      aValue := LongInt(v);
+    end;
+end;
+
+{$PUSH}{$WARN 4079 OFF}
+function DecCharToQWord(p: PChar; aCount: SizeInt; aSep: char; out aValue: QWord): Boolean;
+var
+  v: QWord;
+  I, t: DWord;
+  pEnd: PChar;
+begin
+  // here assumed aCount > 0 and p^ is a decimal char
+  v := Table[p^];
+  pEnd := p + aCount;
+  Inc(p);
+  I := 1;
+{$IFDEF CPU64}
+  while p < pEnd do
+    begin
+      if p^ = aSep then
+        begin
+          Inc(p);
+          continue;
+        end;
+      if I > 19 then exit(False);
+      t := Table[p^];
+      if t > 9 then exit(False);
+      if I < 19 then
+        v := v * 10 + t
+      else
+        begin
+          if v > 1844674407370955161 then exit(False);
+          v := v * 10 + t;
+          if v < t then exit(False);
+        end;
+      Inc(p);
+      Inc(I);
+    end;
+{$ELSE}
+  while p < pEnd do
+    begin
+      if p^ = aSep then
+        begin
+          Inc(p);
+          continue;
+        end;
+      if I > 19 then exit(False);
+      t := Table[p^];
+      if t > 9 then exit(False);
+      if I < 19 then
+        if I < 9 then
+          v := DWord(v) * 10 + t
+        else
+          v := v * 10 + t
+      else
+        begin
+          if v > 1844674407370955161 then exit(False);
+          v := v * 10 + t;
+          if v < t then exit(False);
+        end;
+      Inc(p);
+      Inc(I);
+    end;
+{$ENDIF}
+  aValue := v;
+  Result := True;
+end;
+{$POP}
+
+function TryDChars2Int(const a: array of char; aSep: char; out aValue: QWord): Boolean;
+var
+  Count: SizeInt;
+  p: PChar;
+begin
+  Result := False;
+  if (Length(a) = 0) or (aSep < ' ') then exit;
+  Count := Length(a);
+  p := @a[0];
+  while p^ in [#9, ' '] do
+    begin
+      Inc(p);
+      Dec(Count);
+      if Count = 0 then exit;
+    end;
+  if p^ = '+' then
+    begin
+      Inc(p);
+      Dec(Count);
+      if Count = 0 then exit;
+    end;
+  if (p^ = '0') and (Count = 1) then
+    begin
+      aValue := 0;
+      exit(True);
+    end;
+  if not (p^ in ['1'..'9']) then exit;
+  Result := DecCharToQWord(p, Count, aSep, aValue);
+end;
+
+function TryDChars2Int(const a: array of char; aSep: char; out aValue: Int64): Boolean;
+var
+  v: QWord;
+  Count: SizeInt;
+  p: PChar;
+  IsNeg: Boolean;
+begin
+  Result := False;
+  if (Length(a) = 0) or (aSep < ' ') then exit;
+  Count := Length(a);
+  p := @a[0];
+  while p^ in [#9, ' '] do
+    begin
+      Inc(p);
+      Dec(Count);
+      if Count = 0 then exit;
+    end;
+  if p^ = '-' then
+    begin
+      IsNeg := True;
+      Inc(p);
+      Dec(Count);
+      if Count = 0 then exit;
+    end
+  else
+    begin
+      IsNeg := False;
+      if p^ = '+' then
+        begin
+          Inc(p);
+          Dec(Count);
+          if Count = 0 then exit;
+        end;
+    end;
+  if (p^ = '0') and (Count = 1) then
+    begin
+      aValue := 0;
+      exit(True);
+    end;
+  if not (p^ in ['1'..'9']) then exit;
+  v := 0;
+  Result := DecCharToQWord(p, Count, aSep, v);
+  if not Result then exit;
+  if IsNeg then
+    begin
+      if v > Succ(QWord(High(Int64))) then exit(False);
+      aValue := -Int64(v);
+    end
+  else
+    begin
+      if v > QWord(High(Int64)) then exit(False);
+      aValue := Int64(v);
+    end;
+end;
+
+function TryDChars2DWordDef(const a: array of char; aSep: char; aDefault: DWord): DWord;
+begin
+  if not TryDChars2Int(a, aSep, Result) then
+    Result := aDefault;
+end;
+
+function TryDChars2IntDef(const a: array of char; aSep: char; aDefault: LongInt): LongInt;
+begin
+  if not TryDChars2Int(a, aSep, Result) then
+    Result := aDefault;
+end;
+
+function TryDChars2QWordDef(const a: array of char; aSep: char; aDefault: QWord): QWord;
+begin
+  if not TryDChars2Int(a, aSep, Result) then
+    Result := aDefault;
+end;
+
+function TryDChars2Int64Def(const a: array of char; aSep: char; aDefault: Int64): Int64;
+begin
+  if not TryDChars2Int(a, aSep, Result) then
+    Result := aDefault;
+end;
+
+function TryDStr2Int(const s: string; aSep: char; out aValue: LongWord): Boolean;
+begin
+  Result := TryDChars2Int(s[1..Length(s)], aSep, aValue);
+end;
+
+function TryDStr2Int(const s: string; aSep: char; out aValue: LongInt): Boolean;
+begin
+  Result := TryDChars2Int(s[1..Length(s)], aSep, aValue);
+end;
+
+function TryDStr2Int(const s: string; aSep: char; out aValue: QWord): Boolean;
+begin
+  Result := TryDChars2Int(s[1..Length(s)], aSep, aValue);
+end;
+
+function TryDStr2Int(const s: string; aSep: char; out aValue: Int64): Boolean;
+begin
+  Result := TryDChars2Int(s[1..Length(s)], aSep, aValue);
+end;
+
+function TryDStr2DWordDef(const s: string; aSep: char; aDefault: DWord): DWord;
+begin
+  if not TryDChars2Int(s[1..Length(s)], aSep, Result) then
+    Result := aDefault;
+end;
+
+function TryDStr2IntDef(const s: string; aSep: char; aDefault: LongInt): LongInt;
+begin
+  if not TryDChars2Int(s[1..Length(s)], aSep, Result) then
+    Result := aDefault;
+end;
+
+function TryDStr2QWordDef(const s: string; aSep: char; aDefault: QWord): QWord;
+begin
+  if not TryDChars2Int(s[1..Length(s)], aSep, Result) then
+    Result := aDefault;
+end;
+
+function TryDStr2Int64Def(const s: string; aSep: char; aDefault: Int64): Int64;
+begin
+  if not TryDChars2Int(s[1..Length(s)], aSep, Result) then
     Result := aDefault;
 end;
 
