@@ -105,7 +105,7 @@ interface
     a separator can not be less than #32;
     the string cannot start with a separator;
     leading spaces and tabs are allowed;
-    leading zeros are not allowed, including in case of zero followed by separator(s);
+    leading zeros are allowed;
     a minus sign is not allowed for unsigned integers }
   function TryDChars2Int(const a: array of char; aSep: char; out aValue: LongWord): Boolean;
   function TryDChars2Int(const a: array of char; aSep: char; out aValue: LongInt): Boolean;
@@ -582,6 +582,8 @@ begin
       aValue := Int64(v);
     end;
 end;
+{$UNDEF TypeMacro}{$UNDEF SetDecTrueMacro}{$UNDEF ConvFunMacro}{$UNDEF OutMacro}
+{$UNDEF MainCaseMacro}{$UNDEF SkipLeadZerosMacro}
 
 function TryChars2ByteDef(const a: array of char; aDefault: Byte): Byte;
 begin
@@ -953,6 +955,20 @@ begin
   Result := True;
 end;
 
+{$DEFINE SkipLeadZerosMacro :=
+  if p^ = '0' then
+    begin
+      repeat
+        Inc(p);
+        Dec(aCount);
+      until (aCount = 0) or not(p^ in ['0'..aSep]);
+      if aCount = 0 then
+        begin
+          aValue := 0;
+          exit(True);
+        end;
+    end
+}
 function TryDChars2Int(const a: array of char; aSep: char; out aValue: LongWord): Boolean;
 var
   aCount: SizeInt;
@@ -964,11 +980,7 @@ begin
   p := @a[0];
   SkipSpacesMacro;
   TestPlusMacro;
-  if (p^ = '0') and (aCount = 1) then
-    begin
-      aValue := 0;
-      exit(True);
-    end;
+  SkipLeadZerosMacro;
   if not (p^ in ['1'..'9']) then exit;
   Result := DecCharToDWord(p, aCount, aSep, aValue);
 end;
@@ -986,11 +998,7 @@ begin
   p := @a[0];
   SkipSpacesMacro;
   TestSignMacro;
-  if (p^ = '0') and (aCount = 1) then
-    begin
-      aValue := 0;
-      exit(True);
-    end;
+  SkipLeadZerosMacro;
   if not (p^ in ['1'..'9']) then exit;
   v := 0;
   Result := DecCharToDWord(p, aCount, aSep, v);
@@ -1083,11 +1091,7 @@ begin
   p := @a[0];
   SkipSpacesMacro;
   TestPlusMacro;
-  if (p^ = '0') and (aCount = 1) then
-    begin
-      aValue := 0;
-      exit(True);
-    end;
+  SkipLeadZerosMacro;
   if not (p^ in ['1'..'9']) then exit;
   Result := DecCharToQWord(p, aCount, aSep, aValue);
 end;
@@ -1105,11 +1109,7 @@ begin
   p := @a[0];
   SkipSpacesMacro;
   TestSignMacro;
-  if (p^ = '0') and (aCount = 1) then
-    begin
-      aValue := 0;
-      exit(True);
-    end;
+  SkipLeadZerosMacro;
   if not (p^ in ['1'..'9']) then exit;
   v := 0;
   Result := DecCharToQWord(p, aCount, aSep, v);
@@ -1125,6 +1125,7 @@ begin
       aValue := Int64(v);
     end;
 end;
+{$MACRO OFF}
 
 function TryDChars2DWordDef(const a: array of char; aSep: char; aDefault: DWord): DWord;
 begin
