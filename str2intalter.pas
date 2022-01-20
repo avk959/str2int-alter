@@ -165,12 +165,8 @@ const
   Int64MaxLen: array[TRadix] of SizeInt = (64, 22, 20, 16);
   Int64PrevMax: array[TRadix] of QWord = (0, 2305843009213693951, 1844674407370955161, 0);
 
-function Base2UInt(p: PChar; aCount: SizeInt; aType: TInt; aRadix: TRadix; out aValue: DWord): Boolean;
-var
-  Base, v, t: DWord;
-  pEnd: PChar;
-begin
-  if aCount < 1 then exit(False);
+{$MACRO ON}
+{$DEFINE SkipLeadZerosMacro :=
   while p^ = '0' do
     begin
       Inc(p);
@@ -180,7 +176,15 @@ begin
           aValue := 0;
           exit(True);
         end;
-    end;
+    end
+}
+function Base2UInt(p: PChar; aCount: SizeInt; aType: TInt; aRadix: TRadix; out aValue: DWord): Boolean;
+var
+  Base, v, t: DWord;
+  pEnd: PChar;
+begin
+  if aCount < 1 then exit(False);
+  SkipLeadZerosMacro;
   if aCount > UIntMaxLen[aType, aRadix] then exit(False);
   Base := Bases[aRadix];
   v := Table[p^];
@@ -199,59 +203,25 @@ begin
   Result := True;
 end;
 
-function BaseParseUInt(p: PChar; aCount: SizeInt; aType: TInt; out aValue: DWord): Boolean;
-begin
-  Result := False;
-  //here assumed aCount > 0
+{$DEFINE SkipSpacesMacro :=
   while p^ in [#9, ' '] do
     begin
       Inc(p);
       Dec(aCount);
       if aCount = 0 then exit;
-    end;
+    end
+}
+
+{$DEFINE TestPlusMacro :=
   if p^ = '+' then
     begin
       Inc(p);
       Dec(aCount);
       if aCount = 0 then exit;
-    end;
-  case p^ of
-    '$': Result := Base2UInt(p+1, aCount-1, aType, rxHex, aValue);
-    '%': Result := Base2UInt(p+1, aCount-1, aType, rxBin, aValue);
-    '&': Result := Base2UInt(p+1, aCount-1, aType, rxOct, aValue);
-    '0':
-      begin
-        if aCount = 1 then
-          begin
-            aValue := 0;
-            exit(True);
-          end;
-        //here aCount > 1
-        case p[1] of
-          '0'..'9': Result := Base2UInt(p+1, aCount-1, aType, rxOct, aValue);
-          'B', 'b': Result := Base2UInt(p+2, aCount-2, aType, rxBin, aValue);
-          'O', 'o': Result := Base2UInt(p+2, aCount-2, aType, rxOct, aValue);
-          'X', 'x': Result := Base2UInt(p+2, aCount-2, aType, rxHex, aValue);
-        end;
-      end;
-    '1'..'9': Result := Base2UInt(p, aCount, aType, rxDec, aValue);
-    'X', 'x': Result := Base2UInt(p+1, aCount-1, aType, rxHex, aValue);
-  end;
-end;
+    end
+}
 
-function BaseParseSInt(p: PChar; aCount: SizeInt; aType: TInt; out aValue: LongInt): Boolean;
-var
-  v: DWord;
-  IsNeg, IsDec: Boolean;
-begin
-  Result := False;
-  //here assumed aCount > 0
-  while p^ in [#9, ' '] do
-    begin
-      Inc(p);
-      Dec(aCount);
-      if aCount = 0 then exit;
-    end;
+{$DEFINE TestSignMacro :=
   if p^ = '-' then
     begin
       IsNeg := True;
@@ -268,13 +238,14 @@ begin
           Dec(aCount);
           if aCount = 0 then exit;
         end;
-    end;
-  v := 0;
-  IsDec := False;
+    end
+}
+
+{$DEFINE MainCaseMacro :=
   case p^ of
-    '$': Result := Base2UInt(p+1, aCount-1, aType, rxHex, v);
-    '%': Result := Base2UInt(p+1, aCount-1, aType, rxBin, v);
-    '&': Result := Base2UInt(p+1, aCount-1, aType, rxOct, v);
+    '$': Result := ConvFunMacro(p+1, aCount-1, TypeMacro rxHex, OutMacro);
+    '%': Result := ConvFunMacro(p+1, aCount-1, TypeMacro rxBin, OutMacro);
+    '&': Result := ConvFunMacro(p+1, aCount-1, TypeMacro rxOct, OutMacro);
     '0':
       begin
         if aCount = 1 then
@@ -284,19 +255,46 @@ begin
           end;
         //here aCount > 1
         case p[1] of
-          '0'..'9': Result := Base2UInt(p+1, aCount-1, aType, rxOct, v);
-          'B', 'b': Result := Base2UInt(p+2, aCount-2, aType, rxBin, v);
-          'O', 'o': Result := Base2UInt(p+2, aCount-2, aType, rxOct, v);
-          'X', 'x': Result := Base2UInt(p+2, aCount-2, aType, rxHex, v);
+          '0'..'9': Result := ConvFunMacro(p+1, aCount-1, TypeMacro rxOct, OutMacro);
+          'B', 'b': Result := ConvFunMacro(p+2, aCount-2, TypeMacro rxBin, OutMacro);
+          'O', 'o': Result := ConvFunMacro(p+2, aCount-2, TypeMacro rxOct, OutMacro);
+          'X', 'x': Result := ConvFunMacro(p+2, aCount-2, TypeMacro rxHex, OutMacro);
         end;
       end;
     '1'..'9':
       begin
-        IsDec := True;
-        Result := Base2UInt(p, aCount, aType, rxDec, v);
+        SetDecTrueMacro
+        Result := ConvFunMacro(p, aCount, TypeMacro rxDec, OutMacro);
       end;
-    'X', 'x': Result := Base2UInt(p+1, aCount-1, aType, rxHex, v);
+    'X', 'x': Result := ConvFunMacro(p+1, aCount-1, TypeMacro rxHex, OutMacro)
   end;
+}
+
+function BaseParseUInt(p: PChar; aCount: SizeInt; aType: TInt; out aValue: DWord): Boolean;
+begin
+  Result := False;
+  //here assumed aCount > 0
+  SkipSpacesMacro;
+  TestPlusMacro;
+  {$DEFINE TypeMacro := aType,}{$DEFINE SetDecTrueMacro :=}
+  {$DEFINE ConvFunMacro := Base2UInt}{$DEFINE OutMacro := aValue}
+  MainCaseMacro;
+end;
+
+function BaseParseSInt(p: PChar; aCount: SizeInt; aType: TInt; out aValue: LongInt): Boolean;
+var
+  v: DWord;
+  IsNeg, IsDec: Boolean;
+begin
+  Result := False;
+  //here assumed aCount > 0
+  SkipSpacesMacro;
+  TestSignMacro;
+  v := 0;
+  IsDec := False;
+  {$DEFINE TypeMacro := aType,}{$DEFINE SetDecTrueMacro := IsDec := True;}
+  {$DEFINE ConvFunMacro := Base2UInt}{$DEFINE OutMacro := v}
+  MainCaseMacro;
   if not Result then exit;
   if IsNeg then
     begin
@@ -361,16 +359,7 @@ var
   pEnd: PChar;
 begin
   if aCount < 1 then exit(False);
-  while p^ = '0' do
-    begin
-      Inc(p);
-      Dec(aCount);
-      if aCount = 0 then
-        begin
-          aValue := 0;
-          exit(True);
-        end;
-    end;
+  SkipLeadZerosMacro;
   if aCount > Int32MaxLen[aRadix] then exit(False);
   Base := Bases[aRadix];
   v := Table[p^];
@@ -417,112 +406,38 @@ end;
 
 function TryChars2Int(const a: array of char; out aValue: LongWord): Boolean;
 var
-  Count: SizeInt;
+  aCount: SizeInt;
   p: PChar;
 begin
   Result := False;
   if Length(a) = 0 then exit;
-  Count := Length(a);
+  aCount := Length(a);
   p := @a[0];
-  while p^ in [#9, ' '] do
-    begin
-      Inc(p);
-      Dec(Count);
-      if Count = 0 then exit;
-    end;
-  if p^ = '+' then
-    begin
-      Inc(p);
-      Dec(Count);
-      if Count = 0 then exit;
-    end;
-
-  case p^ of
-    '$': Result := CharToDWord(p+1, Count-1, rxHex, aValue);
-    '%': Result := CharToDWord(p+1, Count-1, rxBin, aValue);
-    '&': Result := CharToDWord(p+1, Count-1, rxOct, aValue);
-    '0':
-      begin
-        if Count = 1 then
-          begin
-            aValue := 0;
-            exit(True);
-          end;
-        //here Count > 1
-        case p[1] of
-          '0'..'9': Result := CharToDWord(p+1, Count-1, rxOct, aValue);
-          'B', 'b': Result := CharToDWord(p+2, Count-2, rxBin, aValue);
-          'O', 'o': Result := CharToDWord(p+2, Count-2, rxOct, aValue);
-          'X', 'x': Result := CharToDWord(p+2, Count-2, rxHex, aValue);
-        end;
-      end;
-    '1'..'9': Result := CharToDWord(p, Count, rxDec, aValue);
-    'X', 'x': Result := CharToDWord(p+1, Count-1, rxHex, aValue);
-  end;
+  SkipSpacesMacro;
+  TestPlusMacro;
+  {$DEFINE TypeMacro :=}{$DEFINE SetDecTrueMacro :=}
+  {$DEFINE ConvFunMacro := CharToDWord}{$DEFINE OutMacro := aValue}
+  MainCaseMacro;
 end;
 
 function TryChars2Int(const a: array of char; out aValue: LongInt): Boolean;
 var
   v: DWord;
-  Count: SizeInt;
+  aCount: SizeInt;
   p: PChar;
   IsNeg, IsDec: Boolean;
 begin
   Result := False;
   if Length(a) = 0 then exit;
-  Count := Length(a);
+  aCount := Length(a);
   p := @a[0];
-  while p^ in [#9, ' '] do
-    begin
-      Inc(p);
-      Dec(Count);
-      if Count = 0 then exit;
-    end;
-  if p^ = '-' then
-    begin
-      IsNeg := True;
-      Inc(p);
-      Dec(Count);
-      if Count = 0 then exit;
-    end
-  else
-    begin
-      IsNeg := False;
-      if p^ = '+' then
-        begin
-          Inc(p);
-          Dec(Count);
-          if Count = 0 then exit;
-        end;
-    end;
+  SkipSpacesMacro;
+  TestSignMacro;
   v := 0;
   IsDec := False;
-  case p^ of
-    '$': Result := CharToDWord(p+1, Count-1, rxHex, v);
-    '%': Result := CharToDWord(p+1, Count-1, rxBin, v);
-    '&': Result := CharToDWord(p+1, Count-1, rxOct, v);
-    '0':
-      begin
-        if Count = 1 then
-          begin
-            aValue := 0;
-            exit(True);
-          end;
-        //here Count > 1
-        case p[1] of
-          '0'..'9': Result := CharToDWord(p+1, Count-1, rxOct, v);
-          'B', 'b': Result := CharToDWord(p+2, Count-2, rxBin, v);
-          'O', 'o': Result := CharToDWord(p+2, Count-2, rxOct, v);
-          'X', 'x': Result := CharToDWord(p+2, Count-2, rxHex, v);
-        end;
-      end;
-    '1'..'9':
-      begin
-        IsDec := True;
-        Result := CharToDWord(p, Count, rxDec, v);
-      end;
-    'X', 'x': Result := CharToDWord(p+1, Count-1, rxHex, v);
-  end;
+  {$DEFINE TypeMacro :=}{$DEFINE SetDecTrueMacro := IsDec := True;}
+  {$DEFINE ConvFunMacro := CharToDWord}{$DEFINE OutMacro := v}
+  MainCaseMacro;
   if not Result then exit;
   if IsNeg then
     begin
@@ -547,16 +462,7 @@ var
 {$ENDIF}
 begin
   if aCount < 1 then exit(False);
-  while p^ = '0' do
-    begin
-      Inc(p);
-      Dec(aCount);
-      if aCount = 0 then
-        begin
-          aValue := 0;
-          exit(True);
-        end;
-    end;
+  SkipLeadZerosMacro;
   if aCount > Int64MaxLen[aRadix] then exit(False);
   Base := Bases[aRadix];
   v := Table[p^];
@@ -632,112 +538,38 @@ end;
 
 function TryChars2Int(const a: array of char; out aValue: QWord): Boolean;
 var
-  Count: SizeInt;
+  aCount: SizeInt;
   p: PChar;
 begin
   Result := False;
   if Length(a) = 0 then exit;
-  Count := Length(a);
+  aCount := Length(a);
   p := @a[0];
-  while p^ in [#9, ' '] do
-    begin
-      Inc(p);
-      Dec(Count);
-      if Count = 0 then exit;
-    end;
-  if p^ = '+' then
-    begin
-      Inc(p);
-      Dec(Count);
-      if Count = 0 then exit;
-    end;
-
-  case p^ of
-    '$': Result := CharToQWord(p+1, Count-1, rxHex, aValue);
-    '%': Result := CharToQWord(p+1, Count-1, rxBin, aValue);
-    '&': Result := CharToQWord(p+1, Count-1, rxOct, aValue);
-    '0':
-      begin
-        if Count = 1 then
-          begin
-            aValue := 0;
-            exit(True);
-          end;
-        //here Count > 1
-        case p[1] of
-          '0'..'9': Result := CharToQWord(p+1, Count-1, rxOct, aValue);
-          'B', 'b': Result := CharToQWord(p+2, Count-2, rxBin, aValue);
-          'O', 'o': Result := CharToQWord(p+2, Count-2, rxOct, aValue);
-          'X', 'x': Result := CharToQWord(p+2, Count-2, rxHex, aValue);
-        end;
-      end;
-    '1'..'9': Result := CharToQWord(p, Count, rxDec, aValue);
-    'X', 'x': Result := CharToQWord(p+1, Count-1, rxHex, aValue);
-  end;
+  SkipSpacesMacro;
+  TestPlusMacro;
+  {$DEFINE TypeMacro :=}{$DEFINE SetDecTrueMacro :=}
+  {$DEFINE ConvFunMacro := CharToQWord}{$DEFINE OutMacro := aValue}
+  MainCaseMacro;
 end;
 
 function TryChars2Int(const a: array of char; out aValue: Int64): Boolean;
 var
   v: QWord;
-  Count: SizeInt;
+  aCount: SizeInt;
   p: PChar;
   IsNeg, IsDec: Boolean;
 begin
   Result := False;
   if Length(a) = 0 then exit;
-  Count := Length(a);
+  aCount := Length(a);
   p := @a[0];
-  while p^ in [#9, ' '] do
-    begin
-      Inc(p);
-      Dec(Count);
-      if Count = 0 then exit;
-    end;
-  if p^ = '-' then
-    begin
-      IsNeg := True;
-      Inc(p);
-      Dec(Count);
-      if Count = 0 then exit;
-    end
-  else
-    begin
-      IsNeg := False;
-      if p^ = '+' then
-        begin
-          Inc(p);
-          Dec(Count);
-          if Count = 0 then exit;
-        end;
-    end;
+  SkipSpacesMacro;
+  TestSignMacro;
   v := 0;
   IsDec := False;
-  case p^ of
-    '$': Result := CharToQWord(p+1, Count-1, rxHex, v);
-    '%': Result := CharToQWord(p+1, Count-1, rxBin, v);
-    '&': Result := CharToQWord(p+1, Count-1, rxOct, v);
-    '0':
-      begin
-        if Count = 1 then
-          begin
-            aValue := 0;
-            exit(True);
-          end;
-        //here Count > 1
-        case p[1] of
-          '0'..'9': Result := CharToQWord(p+1, Count-1, rxOct, v);
-          'B', 'b': Result := CharToQWord(p+2, Count-2, rxBin, v);
-          'O', 'o': Result := CharToQWord(p+2, Count-2, rxOct, v);
-          'X', 'x': Result := CharToQWord(p+2, Count-2, rxHex, v);
-        end;
-      end;
-    '1'..'9':
-      begin
-        IsDec := True;
-        Result := CharToQWord(p, Count, rxDec, v);
-      end;
-    'X', 'x': Result := CharToQWord(p+1, Count-1, rxHex, v);
-  end;
+  {$DEFINE TypeMacro :=}{$DEFINE SetDecTrueMacro := IsDec := True;}
+  {$DEFINE ConvFunMacro := CharToQWord}{$DEFINE OutMacro := v}
+  MainCaseMacro;
   if not Result then exit;
   if IsNeg then
     begin
@@ -1123,76 +955,45 @@ end;
 
 function TryDChars2Int(const a: array of char; aSep: char; out aValue: LongWord): Boolean;
 var
-  Count: SizeInt;
+  aCount: SizeInt;
   p: PChar;
 begin
   Result := False;
   if (Length(a) = 0) or (aSep < ' ') then exit;
-  Count := Length(a);
+  aCount := Length(a);
   p := @a[0];
-  while p^ in [#9, ' '] do
-    begin
-      Inc(p);
-      Dec(Count);
-      if Count = 0 then exit;
-    end;
-  if p^ = '+' then
-    begin
-      Inc(p);
-      Dec(Count);
-      if Count = 0 then exit;
-    end;
-  if (p^ = '0') and (Count = 1) then
+  SkipSpacesMacro;
+  TestPlusMacro;
+  if (p^ = '0') and (aCount = 1) then
     begin
       aValue := 0;
       exit(True);
     end;
   if not (p^ in ['1'..'9']) then exit;
-  Result := DecCharToDWord(p, Count, aSep, aValue);
+  Result := DecCharToDWord(p, aCount, aSep, aValue);
 end;
 
 function TryDChars2Int(const a: array of char; aSep: char; out aValue: LongInt): Boolean;
 var
   v: DWord;
-  Count: SizeInt;
+  aCount: SizeInt;
   p: PChar;
   IsNeg: Boolean;
 begin
   Result := False;
   if (Length(a) = 0) or (aSep < ' ') then exit;
-  Count := Length(a);
+  aCount := Length(a);
   p := @a[0];
-  while p^ in [#9, ' '] do
-    begin
-      Inc(p);
-      Dec(Count);
-      if Count = 0 then exit;
-    end;
-  if p^ = '-' then
-    begin
-      IsNeg := True;
-      Inc(p);
-      Dec(Count);
-      if Count = 0 then exit;
-    end
-  else
-    begin
-      IsNeg := False;
-      if p^ = '+' then
-        begin
-          Inc(p);
-          Dec(Count);
-          if Count = 0 then exit;
-        end;
-    end;
-  if (p^ = '0') and (Count = 1) then
+  SkipSpacesMacro;
+  TestSignMacro;
+  if (p^ = '0') and (aCount = 1) then
     begin
       aValue := 0;
       exit(True);
     end;
   if not (p^ in ['1'..'9']) then exit;
   v := 0;
-  Result := DecCharToDWord(p, Count, aSep, v);
+  Result := DecCharToDWord(p, aCount, aSep, v);
   if not Result then exit;
   if IsNeg then
     begin
@@ -1273,76 +1074,45 @@ end;
 
 function TryDChars2Int(const a: array of char; aSep: char; out aValue: QWord): Boolean;
 var
-  Count: SizeInt;
+  aCount: SizeInt;
   p: PChar;
 begin
   Result := False;
   if (Length(a) = 0) or (aSep < ' ') then exit;
-  Count := Length(a);
+  aCount := Length(a);
   p := @a[0];
-  while p^ in [#9, ' '] do
-    begin
-      Inc(p);
-      Dec(Count);
-      if Count = 0 then exit;
-    end;
-  if p^ = '+' then
-    begin
-      Inc(p);
-      Dec(Count);
-      if Count = 0 then exit;
-    end;
-  if (p^ = '0') and (Count = 1) then
+  SkipSpacesMacro;
+  TestPlusMacro;
+  if (p^ = '0') and (aCount = 1) then
     begin
       aValue := 0;
       exit(True);
     end;
   if not (p^ in ['1'..'9']) then exit;
-  Result := DecCharToQWord(p, Count, aSep, aValue);
+  Result := DecCharToQWord(p, aCount, aSep, aValue);
 end;
 
 function TryDChars2Int(const a: array of char; aSep: char; out aValue: Int64): Boolean;
 var
   v: QWord;
-  Count: SizeInt;
+  aCount: SizeInt;
   p: PChar;
   IsNeg: Boolean;
 begin
   Result := False;
   if (Length(a) = 0) or (aSep < ' ') then exit;
-  Count := Length(a);
+  aCount := Length(a);
   p := @a[0];
-  while p^ in [#9, ' '] do
-    begin
-      Inc(p);
-      Dec(Count);
-      if Count = 0 then exit;
-    end;
-  if p^ = '-' then
-    begin
-      IsNeg := True;
-      Inc(p);
-      Dec(Count);
-      if Count = 0 then exit;
-    end
-  else
-    begin
-      IsNeg := False;
-      if p^ = '+' then
-        begin
-          Inc(p);
-          Dec(Count);
-          if Count = 0 then exit;
-        end;
-    end;
-  if (p^ = '0') and (Count = 1) then
+  SkipSpacesMacro;
+  TestSignMacro;
+  if (p^ = '0') and (aCount = 1) then
     begin
       aValue := 0;
       exit(True);
     end;
   if not (p^ in ['1'..'9']) then exit;
   v := 0;
-  Result := DecCharToQWord(p, Count, aSep, v);
+  Result := DecCharToQWord(p, aCount, aSep, v);
   if not Result then exit;
   if IsNeg then
     begin
