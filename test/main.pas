@@ -1442,7 +1442,9 @@ begin
   s := '_0';
   AssertEquals('convert "_0"', False, TryDChars2Int(s[1..Length(s)], '_', d));
   s := '0_';
-  AssertEquals('convert "0_"', False, TryDChars2Int(s[1..Length(s)], '_', d));
+  d := 42;
+  AssertEquals('convert "0_"', True, TryDChars2Int(s[1..Length(s)], '_', d));
+  AssertEquals('convert "0_", result', 0,  d);
   s := '-1_0';
   AssertEquals('convert "-1_0"', False, TryDChars2Int(s[1..Length(s)], '_', d));
   s := '10';
@@ -1476,7 +1478,9 @@ begin
   s := '_0';
   AssertEquals('convert "_0"', False, TryDChars2Int(s[1..Length(s)], '_', i));
   s := '0_';
-  AssertEquals('convert "0_"', False, TryDChars2Int(s[1..Length(s)], '_', i));
+  i := 42;
+  AssertEquals('convert "0_"', True, TryDChars2Int(s[1..Length(s)], '_', i));
+  AssertEquals('convert "0_", result', 0,  i);
   s := '+0';
   AssertEquals('use "#9" as separator', False, TryDChars2Int(s[1..Length(s)], #9, i));
   i := 42;
@@ -1508,7 +1512,9 @@ begin
   s := '_0';
   AssertEquals('convert "_0"', False, TryDChars2Int(s[1..Length(s)], '_', q));
   s := '0_';
-  AssertEquals('convert "0_"', False, TryDChars2Int(s[1..Length(s)], '_', q));
+  q := 42;
+  AssertEquals('convert "0_"', True, TryDChars2Int(s[1..Length(s)], '_', q));
+  AssertEquals('convert "0_", result', 0,  q);
   s := '-1_0';
   AssertEquals('convert "-1_0"', False, TryDChars2Int(s[1..Length(s)], '_', q));
   s := '10';
@@ -1539,7 +1545,9 @@ begin
   s := '_0';
   AssertEquals('convert "_0"', False, TryDChars2Int(s[1..Length(s)], '_', i));
   s := '0_';
-  AssertEquals('convert "0_"', False, TryDChars2Int(s[1..Length(s)], '_', i));
+  i := 42;
+  AssertEquals('convert "0_"', True, TryDChars2Int(s[1..Length(s)], '_', i));
+  AssertEquals('convert "0_", result', 0,  i);
   s := '+0';
   AssertEquals('use "#9" as separator', False, TryDChars2Int(s[1..Length(s)], #9, i));
   i := 42;
