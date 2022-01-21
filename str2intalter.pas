@@ -20,13 +20,20 @@ unit Str2IntAlter;
 
 interface
 
-{
-  parsing rules are basically the same as in the built-in Val():
+{ parsing rules are basically the same as in the built-in Val():
     leading spaces and tabs are allowed;
     a minus sign is not allowed for unsigned integers;
     binary notation can be prefixed with %(Pascal), 0b, or 0B(C, Python ...);
     octal notation can be prefixed with &(Pascal), 0(C, Python 2), 0O or 0o(Python 3, Nim);
     hex notation can use the same prefixes as Val();
+
+    if input string represents a numerical value in decimal notation, or a negative number,
+    then the numerical value MUST fit into the range of the type of aValue;
+
+    if input string represents a numerical value in binary, octal or hexadecimal notation,
+    and does not contain a minus sign, then the numerical value MUST fit into the unsigned
+    counterpart of the type of aValue and will be casted to the type of aValue;
+
   if the Try...2Int() function returns False, then aValue is undefined }
   function TryChars2Int(const a: array of char; out aValue: Byte): Boolean;
   function TryChars2Int(const a: array of char; out aValue: ShortInt): Boolean;
@@ -106,7 +113,8 @@ interface
     the string cannot start with a separator;
     leading spaces and tabs are allowed;
     leading zeros are allowed;
-    a minus sign is not allowed for unsigned integers }
+    a minus sign is not allowed for unsigned integers;
+    numerical value MUST fit into the range of the type of aValue }
   function TryDChars2Int(const a: array of char; aSep: char; out aValue: LongWord): Boolean;
   function TryDChars2Int(const a: array of char; aSep: char; out aValue: LongInt): Boolean;
   function TryDChars2Int(const a: array of char; aSep: char; out aValue: QWord): Boolean;
