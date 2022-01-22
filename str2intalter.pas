@@ -18,14 +18,13 @@ unit Str2IntAlter;
 
 {$MODE OBJFPC}{$H+}
 
+{.$DEFINE NEED_VAL_COMPAT}//uncomment if full compatibility with Val() is required
+
 interface
 
 { parsing rules are basically the same as in the built-in Val():
     leading spaces and tabs are allowed;
     a minus sign is not allowed for unsigned integers;
-    binary notation can be prefixed with %(Pascal), 0b, or 0B(C, Python ...);
-    octal notation can be prefixed with &(Pascal), 0(C, Python 2), 0O or 0o(Python 3, Nim);
-    hex notation can use the same prefixes as Val();
 
     if input string represents a numerical value in decimal notation, or a negative number,
     then the numerical value MUST fit into the range of the type of aValue;
@@ -33,6 +32,12 @@ interface
     if input string represents a numerical value in binary, octal or hexadecimal notation,
     and does not contain a minus sign, then the numerical value MUST fit into the unsigned
     counterpart of the type of aValue and will be casted to the type of aValue;
+
+    hex notation can use the same prefixes as Val();
+    if NEED_VAL_COMPAT is defined, then other supported prefixes are the same as in Val(),
+    otherwise:
+      binary notation can be prefixed with %(Pascal), 0b, or 0B(C, Python ...);
+      octal notation can be prefixed with &(Pascal), 0(C, Python 2), 0O or 0o(Python 3, Nim);
 
   if the Try...2Int() function returns False, then aValue is undefined }
   function TryChars2Int(const a: array of char; out aValue: Byte): Boolean;
@@ -173,8 +178,12 @@ const
   Int64MaxLen: array[TRadix] of SizeInt = (64, 22, 20, 16);
   Int64PrevMax: array[TRadix] of QWord = (0, 2305843009213693951, 1844674407370955161, 0);
 
-{$MACRO ON}
-{$DEFINE SkipLeadZerosMacro :=
+function Base2UInt(p: PChar; aCount: SizeInt; aType: TInt; aRadix: TRadix; out aValue: DWord): Boolean;
+var
+  Base, v, t: DWord;
+  pEnd: PChar;
+begin
+  if aCount < 1 then exit(False);
   while p^ = '0' do
     begin
       Inc(p);
@@ -184,15 +193,7 @@ const
           aValue := 0;
           exit(True);
         end;
-    end
-}
-function Base2UInt(p: PChar; aCount: SizeInt; aType: TInt; aRadix: TRadix; out aValue: DWord): Boolean;
-var
-  Base, v, t: DWord;
-  pEnd: PChar;
-begin
-  if aCount < 1 then exit(False);
-  SkipLeadZerosMacro;
+    end;
   if aCount > UIntMaxLen[aType, aRadix] then exit(False);
   Base := Bases[aRadix];
   v := Table[p^];
@@ -211,25 +212,80 @@ begin
   Result := True;
 end;
 
-{$DEFINE SkipSpacesMacro :=
+{$MACRO ON}
+{$DEFINE MainCaseMacro :=
+  case p^ of
+    '$': Result := ConvFunMacro(p+1, aCount-1, TypeMacro rxHex, OutMacro);
+    '%': Result := ConvFunMacro(p+1, aCount-1, TypeMacro rxBin, OutMacro);
+    '&': Result := ConvFunMacro(p+1, aCount-1, TypeMacro rxOct, OutMacro);
+    '0':
+      begin
+        if aCount = 1 then
+          begin
+            aValue := 0;
+            exit(True);
+          end;
+{$IFDEF NEED_VAL_COMPAT}
+        case p[1] of
+          '0'..'9':
+            begin
+              SetDecTrueMacro
+              Result := ConvFunMacro(p+1, aCount-1, TypeMacro rxDec, OutMacro);
+            end;
+          'X', 'x': Result := ConvFunMacro(p+2, aCount-2, TypeMacro rxHex, OutMacro);
+        end;
+{$ELSE }
+        case p[1] of
+          '0'..'9': Result := ConvFunMacro(p+1, aCount-1, TypeMacro rxOct, OutMacro);
+          'B', 'b': Result := ConvFunMacro(p+2, aCount-2, TypeMacro rxBin, OutMacro);
+          'O', 'o': Result := ConvFunMacro(p+2, aCount-2, TypeMacro rxOct, OutMacro);
+          'X', 'x': Result := ConvFunMacro(p+2, aCount-2, TypeMacro rxHex, OutMacro);
+        end;
+{$ENDIF NEED_VAL_COMPAT}
+      end;
+    '1'..'9':
+      begin
+        SetDecTrueMacro
+        Result := ConvFunMacro(p, aCount, TypeMacro rxDec, OutMacro);
+      end;
+    'X', 'x': Result := ConvFunMacro(p+1, aCount-1, TypeMacro rxHex, OutMacro)
+end;
+}
+
+function BaseParseUInt(p: PChar; aCount: SizeInt; aType: TInt; out aValue: DWord): Boolean;
+begin
+  Result := False;
+  //here assumed aCount > 0
   while p^ in [#9, ' '] do
     begin
       Inc(p);
       Dec(aCount);
       if aCount = 0 then exit;
-    end
-}
-
-{$DEFINE TestPlusMacro :=
+    end;
   if p^ = '+' then
+  begin
+    Inc(p);
+    Dec(aCount);
+    if aCount = 0 then exit;
+  end;
+  {$DEFINE TypeMacro := aType,}{$DEFINE SetDecTrueMacro :=}
+  {$DEFINE ConvFunMacro := Base2UInt}{$DEFINE OutMacro := aValue}
+  MainCaseMacro;
+end;
+
+function BaseParseSInt(p: PChar; aCount: SizeInt; aType: TInt; out aValue: LongInt): Boolean;
+var
+  v: DWord;
+  IsNeg, IsDec: Boolean;
+begin
+  Result := False;
+  //here assumed aCount > 0
+  while p^ in [#9, ' '] do
     begin
       Inc(p);
       Dec(aCount);
       if aCount = 0 then exit;
-    end
-}
-
-{$DEFINE TestSignMacro :=
+    end;
   if p^ = '-' then
     begin
       IsNeg := True;
@@ -246,58 +302,7 @@ end;
           Dec(aCount);
           if aCount = 0 then exit;
         end;
-    end
-}
-
-{$DEFINE MainCaseMacro :=
-  case p^ of
-    '$': Result := ConvFunMacro(p+1, aCount-1, TypeMacro rxHex, OutMacro);
-    '%': Result := ConvFunMacro(p+1, aCount-1, TypeMacro rxBin, OutMacro);
-    '&': Result := ConvFunMacro(p+1, aCount-1, TypeMacro rxOct, OutMacro);
-    '0':
-      begin
-        if aCount = 1 then
-          begin
-            aValue := 0;
-            exit(True);
-          end;
-        //here aCount > 1
-        case p[1] of
-          '0'..'9': Result := ConvFunMacro(p+1, aCount-1, TypeMacro rxOct, OutMacro);
-          'B', 'b': Result := ConvFunMacro(p+2, aCount-2, TypeMacro rxBin, OutMacro);
-          'O', 'o': Result := ConvFunMacro(p+2, aCount-2, TypeMacro rxOct, OutMacro);
-          'X', 'x': Result := ConvFunMacro(p+2, aCount-2, TypeMacro rxHex, OutMacro);
-        end;
-      end;
-    '1'..'9':
-      begin
-        SetDecTrueMacro
-        Result := ConvFunMacro(p, aCount, TypeMacro rxDec, OutMacro);
-      end;
-    'X', 'x': Result := ConvFunMacro(p+1, aCount-1, TypeMacro rxHex, OutMacro)
-  end;
-}
-
-function BaseParseUInt(p: PChar; aCount: SizeInt; aType: TInt; out aValue: DWord): Boolean;
-begin
-  Result := False;
-  //here assumed aCount > 0
-  SkipSpacesMacro;
-  TestPlusMacro;
-  {$DEFINE TypeMacro := aType,}{$DEFINE SetDecTrueMacro :=}
-  {$DEFINE ConvFunMacro := Base2UInt}{$DEFINE OutMacro := aValue}
-  MainCaseMacro;
-end;
-
-function BaseParseSInt(p: PChar; aCount: SizeInt; aType: TInt; out aValue: LongInt): Boolean;
-var
-  v: DWord;
-  IsNeg, IsDec: Boolean;
-begin
-  Result := False;
-  //here assumed aCount > 0
-  SkipSpacesMacro;
-  TestSignMacro;
+    end;
   v := 0;
   IsDec := False;
   {$DEFINE TypeMacro := aType,}{$DEFINE SetDecTrueMacro := IsDec := True;}
@@ -316,47 +321,7 @@ begin
     end;
 end;
 
-function TryChars2Int(const a: array of char; out aValue: Byte): Boolean;
-var
-  v: DWord;
-begin
-  if Length(a) = 0 then exit(False);
-  Result := BaseParseUInt(@a[0], Length(a), int8, v);
-  if Result then
-    aValue := v;
-end;
-
-function TryChars2Int(const a: array of char; out aValue: ShortInt): Boolean;
-var
-  v: LongInt;
-begin
-  if Length(a) = 0 then exit(False);
-  Result := BaseParseSInt(@a[0], Length(a), int8, v);
-  if Result then
-    aValue := v;
-end;
-
-function TryChars2Int(const a: array of char; out aValue: Word): Boolean;
-var
-  v: DWord;
-begin
-  if Length(a) = 0 then exit(False);
-  Result := BaseParseUInt(@a[0], Length(a), int16, v);
-  if Result then
-    aValue := v;
-end;
-
-function TryChars2Int(const a: array of char; out aValue: SmallInt): Boolean;
-var
-  v: LongInt;
-begin
-  if Length(a) = 0 then exit(False);
-  Result := BaseParseSInt(@a[0], Length(a), int16, v);
-  if Result then
-    aValue := v;
-end;
-
-function CharToDWord(p: PChar; aCount: SizeInt; aRadix: TRadix; out aValue: DWord): Boolean;
+function PChar2UIntImpl(p: PChar; aCount: SizeInt; aRadix: TRadix; out aValue: DWord): Boolean;
 var
 {$IFDEF CPU64}
   v: QWord;
@@ -367,7 +332,16 @@ var
   pEnd: PChar;
 begin
   if aCount < 1 then exit(False);
-  SkipLeadZerosMacro;
+  while p^ = '0' do
+    begin
+      Inc(p);
+      Dec(aCount);
+      if aCount = 0 then
+        begin
+          aValue := 0;
+          exit(True);
+        end;
+    end;
   if aCount > Int32MaxLen[aRadix] then exit(False);
   Base := Bases[aRadix];
   v := Table[p^];
@@ -412,55 +386,8 @@ begin
   Result := True;
 end;
 
-function TryChars2Int(const a: array of char; out aValue: LongWord): Boolean;
-var
-  aCount: SizeInt;
-  p: PChar;
-begin
-  Result := False;
-  if Length(a) = 0 then exit;
-  aCount := Length(a);
-  p := @a[0];
-  SkipSpacesMacro;
-  TestPlusMacro;
-  {$DEFINE TypeMacro :=}{$DEFINE SetDecTrueMacro :=}
-  {$DEFINE ConvFunMacro := CharToDWord}{$DEFINE OutMacro := aValue}
-  MainCaseMacro;
-end;
-
-function TryChars2Int(const a: array of char; out aValue: LongInt): Boolean;
-var
-  v: DWord;
-  aCount: SizeInt;
-  p: PChar;
-  IsNeg, IsDec: Boolean;
-begin
-  Result := False;
-  if Length(a) = 0 then exit;
-  aCount := Length(a);
-  p := @a[0];
-  SkipSpacesMacro;
-  TestSignMacro;
-  v := 0;
-  IsDec := False;
-  {$DEFINE TypeMacro :=}{$DEFINE SetDecTrueMacro := IsDec := True;}
-  {$DEFINE ConvFunMacro := CharToDWord}{$DEFINE OutMacro := v}
-  MainCaseMacro;
-  if not Result then exit;
-  if IsNeg then
-    begin
-      if v > Succ(DWord(High(LongInt))) then exit(False);
-      aValue := -LongInt(v);
-    end
-  else
-    begin
-      if IsDec and (v > DWord(High(LongInt))) then exit(False);
-      aValue := LongInt(v);
-    end;
-end;
-
 {$PUSH}{$WARN 4079 OFF}
-function CharToQWord(p: PChar; aCount: SizeInt; aRadix: TRadix; out aValue: QWord): Boolean;
+function PChar2UIntImpl(p: PChar; aCount: SizeInt; aRadix: TRadix; out aValue: QWord): Boolean;
 var
   v: QWord;
   Base, t: DWord;
@@ -470,7 +397,16 @@ var
 {$ENDIF}
 begin
   if aCount < 1 then exit(False);
-  SkipLeadZerosMacro;
+  while p^ = '0' do
+    begin
+      Inc(p);
+      Dec(aCount);
+      if aCount = 0 then
+        begin
+          aValue := 0;
+          exit(True);
+        end;
+    end;
   if aCount > Int64MaxLen[aRadix] then exit(False);
   Base := Bases[aRadix];
   v := Table[p^];
@@ -544,54 +480,135 @@ begin
 end;
 {$POP}
 
-function TryChars2Int(const a: array of char; out aValue: QWord): Boolean;
-var
-  aCount: SizeInt;
-  p: PChar;
+generic function PChar2UInt<T>(p: PChar; aCount: SizeInt; out aValue: T): Boolean;
 begin
   Result := False;
-  if Length(a) = 0 then exit;
-  aCount := Length(a);
-  p := @a[0];
-  SkipSpacesMacro;
-  TestPlusMacro;
+  //here assumed aCount > 0
+  while p^ in [#9, ' '] do
+    begin
+      Inc(p);
+      Dec(aCount);
+      if aCount = 0 then exit;
+    end;
+  if p^ = '+' then
+    begin
+      Inc(p);
+      Dec(aCount);
+      if aCount = 0 then exit;
+    end;
   {$DEFINE TypeMacro :=}{$DEFINE SetDecTrueMacro :=}
-  {$DEFINE ConvFunMacro := CharToQWord}{$DEFINE OutMacro := aValue}
+  {$DEFINE ConvFunMacro := PChar2UIntImpl}{$DEFINE OutMacro := aValue}
   MainCaseMacro;
 end;
 
-function TryChars2Int(const a: array of char; out aValue: Int64): Boolean;
+generic function PChar2SInt<TUInt, TSint>(p: PChar; aCount: SizeInt; out aValue: TSint): Boolean;
 var
-  v: QWord;
-  aCount: SizeInt;
-  p: PChar;
+  v: TUInt;
   IsNeg, IsDec: Boolean;
 begin
   Result := False;
-  if Length(a) = 0 then exit;
-  aCount := Length(a);
-  p := @a[0];
-  SkipSpacesMacro;
-  TestSignMacro;
-  v := 0;
-  IsDec := False;
-  {$DEFINE TypeMacro :=}{$DEFINE SetDecTrueMacro := IsDec := True;}
-  {$DEFINE ConvFunMacro := CharToQWord}{$DEFINE OutMacro := v}
-  MainCaseMacro;
-  if not Result then exit;
-  if IsNeg then
+  //here assumed aCount > 0
+  while p^ in [#9, ' '] do
     begin
-      if v > Succ(QWord(High(Int64))) then exit(False);
-      aValue := -Int64(v);
+      Inc(p);
+      Dec(aCount);
+      if aCount = 0 then exit;
+    end;
+  if p^ = '-' then
+    begin
+      IsNeg := True;
+      Inc(p);
+      Dec(aCount);
+      if aCount = 0 then exit;
     end
   else
     begin
-      if IsDec and (v > QWord(High(Int64))) then exit(False);
-      aValue := Int64(v);
+      IsNeg := False;
+      if p^ = '+' then
+        begin
+          Inc(p);
+          Dec(aCount);
+          if aCount = 0 then exit;
+        end;
     end;
+  v := 0;
+  IsDec := False;
+  {$DEFINE TypeMacro :=}{$DEFINE SetDecTrueMacro := IsDec := True;}
+  {$DEFINE ConvFunMacro := PChar2UIntImpl}{$DEFINE OutMacro := v}
+  MainCaseMacro;
+  if Result then
+    if IsNeg then
+      begin
+        if v > Succ(TUInt(High(TSint))) then exit(False);
+        aValue := -TSint(v);
+      end
+    else
+      begin
+        if IsDec and (v > TUInt(High(TSint))) then exit(False);
+        aValue := TSint(v);
+      end;
 end;
-{$UNDEF TypeMacro}{$UNDEF SetDecTrueMacro}{$UNDEF ConvFunMacro}{$UNDEF OutMacro}
-{$UNDEF MainCaseMacro}{$UNDEF SkipLeadZerosMacro}
+{$MACRO OFF}
+
+function TryChars2Int(const a: array of char; out aValue: Byte): Boolean;
+var
+  v: DWord;
+begin
+  if (Length(a) = 0) or not BaseParseUInt(@a[0], Length(a), int8, v) then exit(False);
+  aValue := v;
+  Result := True;
+end;
+
+function TryChars2Int(const a: array of char; out aValue: ShortInt): Boolean;
+var
+  v: LongInt;
+begin
+  if (Length(a) = 0) or not BaseParseSInt(@a[0], Length(a), int8, v) then exit(False);
+  aValue := v;
+  Result := True;
+end;
+
+function TryChars2Int(const a: array of char; out aValue: Word): Boolean;
+var
+  v: DWord;
+begin
+  if (Length(a) = 0) or not BaseParseUInt(@a[0], Length(a), int16, v) then exit(False);
+  aValue := v;
+  Result := True;
+end;
+
+function TryChars2Int(const a: array of char; out aValue: SmallInt): Boolean;
+var
+  v: LongInt;
+begin
+  if (Length(a) = 0) or not BaseParseSInt(@a[0], Length(a), int16, v) then exit(False);
+  aValue := v;
+  Result := True;
+end;
+
+function TryChars2Int(const a: array of char; out aValue: LongWord): Boolean;
+begin
+  if Length(a) = 0 then exit(False);
+  Result := specialize PChar2UInt<DWord>(@a[0], Length(a), aValue);
+end;
+
+function TryChars2Int(const a: array of char; out aValue: LongInt): Boolean;
+begin
+  if Length(a) = 0 then exit(False);
+  Result :=  specialize PChar2SInt<DWord, LongInt>(@a[0], Length(a), aValue);
+end;
+
+function TryChars2Int(const a: array of char; out aValue: QWord): Boolean;
+begin
+  if Length(a) = 0 then exit(False);
+  Result := specialize PChar2UInt<QWord>(@a[0], Length(a), aValue);
+end;
+
+function TryChars2Int(const a: array of char; out aValue: Int64): Boolean;
+begin
+  if Length(a) = 0 then exit(False);
+  Result := specialize PChar2SInt<QWord, Int64>(@a[0], Length(a), aValue);
+end;
 
 function TryChars2ByteDef(const a: array of char; aDefault: Byte): Byte;
 begin
@@ -905,7 +922,7 @@ begin
     Result := aDefault;
 end;
 
-function DecCharToDWord(p: PChar; aCount: SizeInt; aSep: Char; out aValue: DWord): Boolean;
+function DecPChar2UIntImpl(p: PChar; aCount: SizeInt; aSep: Char; out aValue: DWord): Boolean;
 var
 {$IFDEF CPU64}
   v: QWord;
@@ -963,68 +980,8 @@ begin
   Result := True;
 end;
 
-{$DEFINE SkipLeadZerosMacro :=
-  if p^ = '0' then
-    begin
-      repeat
-        Inc(p);
-        Dec(aCount);
-      until (aCount = 0) or not(p^ in ['0'..aSep]);
-      if aCount = 0 then
-        begin
-          aValue := 0;
-          exit(True);
-        end;
-    end
-}
-function TryDChars2Int(const a: array of char; aSep: char; out aValue: LongWord): Boolean;
-var
-  aCount: SizeInt;
-  p: PChar;
-begin
-  Result := False;
-  if (Length(a) = 0) or (aSep < ' ') then exit;
-  aCount := Length(a);
-  p := @a[0];
-  SkipSpacesMacro;
-  TestPlusMacro;
-  SkipLeadZerosMacro;
-  if not (p^ in ['1'..'9']) then exit;
-  Result := DecCharToDWord(p, aCount, aSep, aValue);
-end;
-
-function TryDChars2Int(const a: array of char; aSep: char; out aValue: LongInt): Boolean;
-var
-  v: DWord;
-  aCount: SizeInt;
-  p: PChar;
-  IsNeg: Boolean;
-begin
-  Result := False;
-  if (Length(a) = 0) or (aSep < ' ') then exit;
-  aCount := Length(a);
-  p := @a[0];
-  SkipSpacesMacro;
-  TestSignMacro;
-  SkipLeadZerosMacro;
-  if not (p^ in ['1'..'9']) then exit;
-  v := 0;
-  Result := DecCharToDWord(p, aCount, aSep, v);
-  if not Result then exit;
-  if IsNeg then
-    begin
-      if v > Succ(DWord(High(LongInt))) then exit(False);
-      aValue := -LongInt(v);
-    end
-  else
-    begin
-      if v > DWord(High(LongInt)) then exit(False);
-      aValue := LongInt(v);
-    end;
-end;
-
 {$PUSH}{$WARN 4079 OFF}
-function DecCharToQWord(p: PChar; aCount: SizeInt; aSep: char; out aValue: QWord): Boolean;
+function DecPChar2UIntImpl(p: PChar; aCount: SizeInt; aSep: char; out aValue: QWord): Boolean;
 var
   v: QWord;
   I, t: DWord;
@@ -1088,52 +1045,117 @@ begin
 end;
 {$POP}
 
-function TryDChars2Int(const a: array of char; aSep: char; out aValue: QWord): Boolean;
-var
-  aCount: SizeInt;
-  p: PChar;
+generic function DecPChar2UInt<T>(p: PChar; aCount: SizeInt; aSep: char; out aValue: T): Boolean;
 begin
-  Result := False;
-  if (Length(a) = 0) or (aSep < ' ') then exit;
-  aCount := Length(a);
-  p := @a[0];
-  SkipSpacesMacro;
-  TestPlusMacro;
-  SkipLeadZerosMacro;
-  if not (p^ in ['1'..'9']) then exit;
-  Result := DecCharToQWord(p, aCount, aSep, aValue);
+  //here assumed aCount > 0
+  while p^ in [#9, ' '] do
+    begin
+      Inc(p);
+      Dec(aCount);
+      if aCount = 0 then exit(False);
+    end;
+  if p^ = '+' then
+    begin
+      Inc(p);
+      Dec(aCount);
+      if aCount = 0 then exit(False);
+    end;
+  if p^ = '0' then
+  begin
+    repeat
+      Inc(p);
+      Dec(aCount);
+    until (aCount = 0) or not(p^ in ['0'..aSep]);
+    if aCount = 0 then
+      begin
+        aValue := 0;
+        exit(True);
+      end;
+  end;
+  if not (p^ in ['1'..'9']) then exit(False);
+  Result := DecPChar2UIntImpl(p, aCount, aSep, aValue);
 end;
 
-function TryDChars2Int(const a: array of char; aSep: char; out aValue: Int64): Boolean;
+generic function DecPChar2SInt<TUInt, TSint>(p: PChar; aCount: SizeInt; aSep: char; out aValue: TSint): Boolean;
 var
-  v: QWord;
-  aCount: SizeInt;
-  p: PChar;
+  v: TUInt;
   IsNeg: Boolean;
 begin
-  Result := False;
-  if (Length(a) = 0) or (aSep < ' ') then exit;
-  aCount := Length(a);
-  p := @a[0];
-  SkipSpacesMacro;
-  TestSignMacro;
-  SkipLeadZerosMacro;
-  if not (p^ in ['1'..'9']) then exit;
-  v := 0;
-  Result := DecCharToQWord(p, aCount, aSep, v);
-  if not Result then exit;
-  if IsNeg then
+  //here assumed aCount > 0
+  while p^ in [#9, ' '] do
     begin
-      if v > Succ(QWord(High(Int64))) then exit(False);
-      aValue := -Int64(v);
+      Inc(p);
+      Dec(aCount);
+      if aCount = 0 then exit(False);
+    end;
+  if p^ = '-' then
+    begin
+      IsNeg := True;
+      Inc(p);
+      Dec(aCount);
+      if aCount = 0 then exit(False);
     end
   else
     begin
-      if v > QWord(High(Int64)) then exit(False);
-      aValue := Int64(v);
+      IsNeg := False;
+      if p^ = '+' then
+        begin
+          Inc(p);
+          Dec(aCount);
+          if aCount = 0 then exit(False);
+        end;
     end;
+  if p^ = '0' then
+    begin
+      repeat
+        Inc(p);
+        Dec(aCount);
+      until (aCount = 0) or not(p^ in ['0'..aSep]);
+      if aCount = 0 then
+        begin
+          aValue := 0;
+          exit(True);
+        end;
+    end;
+  if not (p^ in ['1'..'9']) then exit(False);
+  v := 0;
+  Result := DecPChar2UIntImpl(p, aCount, aSep, v);
+  if Result then
+    if IsNeg then
+      begin
+        if v > Succ(TUInt(High(TSint))) then exit(False);
+        aValue := -TSint(v);
+      end
+    else
+      begin
+        if v > TUInt(High(TSint)) then exit(False);
+        aValue := TSint(v);
+      end;
 end;
-{$MACRO OFF}
+
+function TryDChars2Int(const a: array of char; aSep: char; out aValue: LongWord): Boolean;
+begin
+  if (Length(a) = 0) or (aSep < ' ') then exit(False);
+  Result := specialize DecPChar2UInt<LongWord>(@a[0], Length(a), aSep, aValue);
+end;
+
+function TryDChars2Int(const a: array of char; aSep: char; out aValue: LongInt): Boolean;
+begin
+  if (Length(a) = 0) or (aSep < ' ') then exit(False);
+  Result := specialize DecPChar2SInt<DWord, LongInt>(@a[0], Length(a), aSep, aValue);
+end;
+
+function TryDChars2Int(const a: array of char; aSep: char; out aValue: QWord): Boolean;
+begin
+  if (Length(a) = 0) or (aSep < ' ') then exit(False);
+  Result := specialize DecPChar2UInt<QWord>(@a[0], Length(a), aSep, aValue);
+end;
+
+function TryDChars2Int(const a: array of char; aSep: char; out aValue: Int64): Boolean;
+begin
+  if (Length(a) = 0) or (aSep < ' ') then exit(False);
+  Result := specialize DecPChar2SInt<QWord, Int64>(@a[0], Length(a), aSep, aValue);
+end;
 
 function TryDChars2DWordDef(const a: array of char; aSep: char; aDefault: DWord): DWord;
 begin
