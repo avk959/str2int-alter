@@ -264,16 +264,16 @@ begin
   RunAltSInt32;
   WriteLn;
 
-  WriteLn('UInt32: ');
-  GenTestUInt32;
-  RunValUInt32;
-  RunAltUInt32;
-  WriteLn;
-
   WriteLn('SInt64: ');
   GenTestSInt64;
   RunValSInt64;
   RunAltSInt64;
+  WriteLn;
+
+  WriteLn('UInt32: ');
+  GenTestUInt32;
+  RunValUInt32;
+  RunAltUInt32;
   WriteLn;
 
   WriteLn('UInt64: ');
