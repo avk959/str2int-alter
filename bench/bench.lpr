@@ -32,11 +32,11 @@ end;
 function NextSInt32: string;
 begin
   case Random(4) of
-    0: Result := ' %' + LongInt(NextRandomDWord).ToBinString;
+    0: Result := ' %' + NextRandomDWord.ToBinString;
     1: Result := ' &' + OctStr(LongInt(NextRandomDWord), 11);
     2: Result := '  ' + LongInt(NextRandomDWord).ToString;
   else
-    Result := ' 0x' + LongInt(NextRandomDWord).ToHexString;
+    Result := ' 0x' + NextRandomDWord.ToHexString;
   end;
 end;
 
@@ -44,7 +44,7 @@ function NextUInt64: string;
 begin
   case Random(4) of
     0: Result := ' +%' + NextRandomQWord.ToBinString;
-    1: Result := ' +&' + OctStr(NextRandomQWord, 22);
+    1: Result := ' +&' + OctStr(Int64(NextRandomQWord), 22);
     2: Result := '  ' + NextRandomQWord.ToString;
   else
     Result := ' +0x' + NextRandomQWord.ToHexString;
@@ -54,11 +54,11 @@ end;
 function NextSInt64: string;
 begin
   case Random(4) of
-    0: Result := ' %' + Int64(NextRandomQWord).ToBinString;
+    0: Result := ' %' + NextRandomQWord.ToBinString;
     1: Result := ' &' + OctStr(Int64(NextRandomQWord), 22);
     2: Result := '  ' + Int64(NextRandomQWord).ToString;
   else
-    Result := ' 0x' + Int64(NextRandomQWord).ToHexString;
+    Result := ' 0x' + NextRandomQWord.ToHexString;
   end;
 end;
 
