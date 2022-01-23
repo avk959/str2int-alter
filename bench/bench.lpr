@@ -45,7 +45,7 @@ begin
   case Random(4) of
     0: Result := ' +%' + NextRandomQWord.ToBinString;
     1: Result := ' +&' + OctStr(Int64(NextRandomQWord), 22);
-    2: Result := '  ' + NextRandomQWord.ToString;
+    2: Result := ' +' + NextRandomQWord.ToString;
   else
     Result := ' +0x' + NextRandomQWord.ToHexString;
   end;
