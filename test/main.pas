@@ -1458,9 +1458,9 @@ begin
   s := '1_0';
   AssertEquals('convert "1_0"', True, TryDChars2Int(s[1..Length(s)], '_', d));
   AssertEquals('convert "1_0", result', 10, d);
-  s := '4_000_000_000_';
-  AssertEquals('convert "4_000_000_000_"', True, TryDChars2Int(s[1..Length(s)], '_', d));
-  AssertEquals('convert "4_000_000_000_", result', 4000000000, d);
+  s := ' '#9'+4_000_000_000_';
+  AssertEquals('convert " #9+4_000_000_000_"', True, TryDChars2Int(s[1..Length(s)], '_', d));
+  AssertEquals('convert " #9+4_000_000_000", result', 4000000000, d);
   s := '4__294__96__729__5__';
   AssertEquals('convert "4__294__96__729__5__"', True, TryDChars2Int(s[1..Length(s)], '_', d));
   AssertEquals('convert "4__294__96__729__5__", result', 4294967295, d);
@@ -1497,7 +1497,7 @@ begin
   AssertEquals('convert "2_147_483_647_", result', 2147483647, i);
   s := '2_147_483_648_';
   AssertEquals('convert "2_147_483_648_"', False, TryDChars2Int(s[1..Length(s)], '_', i));
-  s := '-2_147_483_648_';
+  s := ' -2_147_483_648_';
   AssertEquals('convert "-2_147_483_648_"', True, TryDChars2Int(s[1..Length(s)], '_', i));
   AssertEquals('convert "-2_147_483_648_", result', -2147483648, i);
   s := '-2_147_483_649_';
@@ -1528,9 +1528,9 @@ begin
   s := '1_0';
   AssertEquals('convert "1_0"', True, TryDChars2Int(s[1..Length(s)], '_', q));
   AssertEquals('convert "1_0", result', 10, q);
-  s := '+18__44__67__440__737__09__551__615_';
-  AssertEquals('convert "+18__44__67__440__737__09__551__615_"', True, TryDChars2Int(s[1..Length(s)], '_', q));
-  AssertEquals('convert "+18__44__67__440__737__09__551__615__", result', 18446744073709551615, q);
+  s := ' '#9'+18__44__67__440__737__09__551__615_';
+  AssertEquals('convert " #9+18__44__67__440__737__09__551__615_"', True, TryDChars2Int(s[1..Length(s)], '_', q));
+  AssertEquals('convert " #9+18__44__67__440__737__09__551__615_", result', 18446744073709551615, q);
   s := '18_446_744_0e3_709_551_616';
   AssertEquals('convert "18_446_744_0e3_709_551_616"', False, TryDChars2Int(s[1..Length(s)], '_', q));
   s := '18_446_744_073_709_551_616';
@@ -1564,7 +1564,7 @@ begin
   AssertEquals('convert "9_223_372_036_____854_775_807", result', 9223372036854775807, i);
   s := '9_223_372_036_854_775_808';
   AssertEquals('convert "9_223_372_036_854_775_808"', False, TryDChars2Int(s[1..Length(s)], '_', i));
-  s := '-9_223_372_036_854_775_808';
+  s := ' -9_223_372_036_854_775_808';
   AssertEquals('convert "-9_223_372_036_854_775_808"', True, TryDChars2Int(s[1..Length(s)], '_', i));
   AssertEquals('convert "-9_223_372_036_854_775_808", result', -9223372036854775808, i);
   s := '-9_223_372_036_854_775_809';
