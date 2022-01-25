@@ -1065,7 +1065,7 @@ begin
     repeat
       Inc(p);
       Dec(aCount);
-    until (aCount = 0) or not(p^ in ['0'..aSep]);
+    until (aCount = 0) or not(p^ in ['0', aSep]);
     if aCount = 0 then
       begin
         aValue := 0;
@@ -1110,7 +1110,7 @@ begin
       repeat
         Inc(p);
         Dec(aCount);
-      until (aCount = 0) or not(p^ in ['0'..aSep]);
+      until (aCount = 0) or not(p^ in ['0', aSep]);
       if aCount = 0 then
         begin
           aValue := 0;
