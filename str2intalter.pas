@@ -935,7 +935,7 @@ end;
 
 function Decimals2UInt(p, pEnd: PChar; out aValue: QWord): Boolean;
 var
-  v, tQ: QWord;
+  v{$IFDEF CPU64}, tQ{$ENDIF}: QWord;
   t, Count: DWord;
 begin
   //here assumed p < pEnd and p^ not in [#9, ' ', '-', '+']
