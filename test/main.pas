@@ -28,6 +28,8 @@ type
     procedure TestLongIntWithSeparator;
     procedure TestQWordWithSeparator;
     procedure TestInt64WithSeparator;
+    procedure TestDecimals2QWord;
+    procedure TestDecimals2Int64;
   end;
 
 implementation
@@ -1565,10 +1567,70 @@ begin
   s := '9_223_372_036_854_775_808';
   AssertEquals('convert "9_223_372_036_854_775_808"', False, TryDChars2Int(s[1..Length(s)], '_', i));
   s := ' -9_223_372_036_854_775_808';
-  AssertEquals('convert "-9_223_372_036_854_775_808"', True, TryDChars2Int(s[1..Length(s)], '_', i));
-  AssertEquals('convert "-9_223_372_036_854_775_808", result', -9223372036854775808, i);
+  AssertEquals('convert " -9_223_372_036_854_775_808"', True, TryDChars2Int(s[1..Length(s)], '_', i));
+  AssertEquals('convert " -9_223_372_036_854_775_808", result', -9223372036854775808, i);
   s := '-9_223_372_036_854_775_809';
-  AssertEquals('convert "9_223_372_036_854_775_809"', False, TryDChars2Int(s[1..Length(s)], '_', i));
+  AssertEquals('convert "-9_223_372_036_854_775_809"', False, TryDChars2Int(s[1..Length(s)], '_', i));
+end;
+
+procedure TTestS2I.TestDecimals2QWord;
+var
+  s: string;
+  q: QWord;
+begin
+  s := '';
+  AssertEquals('empty string', False, TryDecimals2Int(s[1..Length(s)], q));
+  s := '0_';
+  AssertEquals('convert "0_"', False, TryDecimals2Int(s[1..Length(s)], q));
+  s := '++10';
+  AssertEquals('convert "++10"', False, TryDecimals2Int(s[1..Length(s)], q));
+  s := ' -10';
+  AssertEquals('convert "-10"', False, TryDecimals2Int(s[1..Length(s)], q));
+  s := '  '#9#9'+00';
+  q := 42;
+  AssertEquals('convert "  #9#9+00"', True, TryDecimals2Int(s[1..Length(s)], q));
+  AssertEquals('convert "+00", result', 0,  q);
+  q := 42;
+  s := ' +10';
+  AssertEquals('convert " +10"', True, TryDecimals2Int(s[1..Length(s)], q));
+  AssertEquals('convert " +100", result', 10, q);
+  s := ' '#9'+18446744073709551615';
+  AssertEquals('convert " #9+18446744073709551615"', True, TryDecimals2Int(s[1..Length(s)], q));
+  AssertEquals('convert " #9+18446744073709551615", result', 18446744073709551615, q);
+  s := '18446744073709551616';
+  AssertEquals('convert "18446744073709551616"', False, TryDecimals2Int(s[1..Length(s)], q));
+end;
+
+procedure TTestS2I.TestDecimals2Int64;
+var
+  s: string;
+  i: Int64;
+begin
+  s := '';
+  AssertEquals('empty string', False, TryDecimals2Int(s[1..Length(s)], i));
+  s := '--0';
+  AssertEquals('convert "_0"', False, TryDecimals2Int(s[1..Length(s)], i));
+  s := '-+0';
+  AssertEquals('convert "-+0"', False, TryDecimals2Int(s[1..Length(s)], i));
+  s := '0 ';
+  AssertEquals('convert "0 "', False, TryDecimals2Int(s[1..Length(s)], i));
+  s := ' '#9'-0000';
+  i := 42;
+  AssertEquals('convert " #9-0000"', True, TryDecimals2Int(s[1..Length(s)], i));
+  AssertEquals('convert " #9-0000", result', 0,  i);
+  s := '-1001';
+  AssertEquals('convert "-1001"', True, TryDecimals2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-1001", result', -1001, i);
+  s := '  9223372036854775807';
+  AssertEquals('convert "  9223372036854775807"', True, TryDecimals2Int(s[1..Length(s)], i));
+  AssertEquals('convert "  9223372036854775807", result', 9223372036854775807, i);
+  s := '9223372036854775808';
+  AssertEquals('convert "9223372036854775808"', False, TryDecimals2Int(s[1..Length(s)], i));
+  s := ' -9223372036854775808';
+  AssertEquals('convert " -9223372036854775808"', True, TryDecimals2Int(s[1..Length(s)], i));
+  AssertEquals('convert " -9223372036854775808", result', -9223372036854775808, i);
+  s := '-9223372036854775809';
+  AssertEquals('convert "9223372036854775809"', False, TryDecimals2Int(s[1..Length(s)], i));
 end;
 
 
