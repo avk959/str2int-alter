@@ -280,7 +280,7 @@ begin
   GenTestUInt64;
   RunValUInt64;
   RunAltUInt64;
-  WriteLn('Press any key to exit...');
+  WriteLn('Press enter to exit...');
   ReadLn;
 end.
 
