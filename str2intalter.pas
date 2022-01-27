@@ -1127,7 +1127,6 @@ begin
   pEnd := p + aCount;
   Inc(p);
   I := 1;
-{$IFDEF CPU64}
   while p < pEnd do
     begin
       if p^ = aSep then
@@ -1135,36 +1134,17 @@ begin
           Inc(p);
           continue;
         end;
-      if I > 9 then exit(False);
+      if I = 10 then exit(False);
       t := Table[p^];
       if t > 9 then exit(False);
       v := v * 10 + t;
       Inc(p);
       Inc(I);
     end;
+{$IFDEF CPU64}
   if v > High(DWord) then exit(False);
 {$ELSE}
-  while p < pEnd do
-    begin
-      if p^ = aSep then
-        begin
-          Inc(p);
-          continue;
-        end;
-      if I > 9 then exit(False);
-      t := Table[p^];
-      if t > 9 then exit(False);
-      if I < 9 then
-        v := v * 10 + t
-      else
-        begin
-          if v > 429496729 then exit(False);
-          v := v * 10 + t;
-          if v < t then exit(False);
-        end;
-      Inc(p);
-      Inc(I);
-    end;
+  if (I = 10) and (v < 1000000000) then exit(False);
 {$ENDIF}
   aValue := v;
   Result := True;
@@ -1181,55 +1161,29 @@ begin
   v := Table[p^];
   pEnd := p + aCount;
   Inc(p);
-  I := 1; //todo: Count!!!
+  I := 1;
+  while p < pEnd do
+    begin
+      if p^ = aSep then
+        begin
+          Inc(p);
+          continue;
+        end;
+      if I = 20 then exit(False);
+      t := Table[p^];
+      if t > 9 then exit(False);
 {$IFDEF CPU64}
-  while p < pEnd do
-    begin
-      if p^ = aSep then
-        begin
-          Inc(p);
-          continue;
-        end;
-      if I > 19 then exit(False);
-      t := Table[p^];
-      if t > 9 then exit(False);
-      if I < 19 then
-        v := v * 10 + t
-      else
-        begin
-          if v > 1844674407370955161 then exit(False);
-          v := v * 10 + t;
-          if v < t then exit(False);
-        end;
-      Inc(p);
-      Inc(I);
-    end;
+      v := v * 10 + t;
 {$ELSE}
-  while p < pEnd do
-    begin
-      if p^ = aSep then
-        begin
-          Inc(p);
-          continue;
-        end;
-      if I > 19 then exit(False);
-      t := Table[p^];
-      if t > 9 then exit(False);
-      if I < 19 then
-        if I < 9 then
-          v := DWord(v) * 10 + t
-        else
-          v := v * 10 + t
+      if I < 9 then
+        v := DWord(v) * 10 + t
       else
-        begin
-          if v > 1844674407370955161 then exit(False);
-          v := v * 10 + t;
-          if v < t then exit(False);
-        end;
+        v := v * 10 + t;
+{$ENDIF}
       Inc(p);
       Inc(I);
     end;
-{$ENDIF}
+  if (I = 20) and (v < QWord(10000000000000000000)) then exit(False);
   aValue := v;
   Result := True;
 end;
