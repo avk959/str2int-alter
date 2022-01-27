@@ -953,19 +953,68 @@ begin
   v := 0;
 {$IFDEF FPC_REQUIRES_PROPER_ALIGNMENT}
 {$PUSH}{$WARN 4055 OFF}
-  if SizeUInt(p) and 7 = 0 then begin
+{$IFDEF CPU64}
+  case SizeUInt(p) and 7 of
+    0:
+      begin
+        while p + 8 < pEnd do
+          begin
+            tQ := PQWord(p)^;
+            {$IFDEF ENDIAN_BIG}SwapEndian(t8);{$ENDIF ENDIAN_BIG}
+            if tQ and QWord($F0F0F0F0F0F0F0F0) <> QWord($3030303030303030) then exit(False);
+            tQ -= QWord($3030303030303030);
+            if (tQ + QWord($0606060606060606)) and QWord($F0F0F0F0F0F0F0F0) <> 0 then exit(False);
+            v := v * 100000000 + (((((((PByte(@tQ)[0] * 10) + PByte(@tQ)[1])* 10 + PByte(@tQ)[2])* 10 +
+              PByte(@tQ)[3])* 10 + PByte(@tQ)[4])* 10 + PByte(@tQ)[5])* 10 + PByte(@tQ)[6])* 10 + PByte(@tQ)[7];
+            Inc(p, 8);
+          end;
+        while p + 4 < pEnd do
+          begin
+            t := PDWord(p)^;
+            {$IFDEF ENDIAN_BIG}SwapEndian(t);{$ENDIF ENDIAN_BIG}
+            if t and DWord($F0F0F0F0) <> DWord($30303030) then exit(False);
+            t -= DWord($30303030);
+            if (t + DWord($06060606)) and DWord($F0F0F0F0) <> 0 then exit(False);
+            v := v * 10000 + ((((PByte(@t)[0] * 10) + PByte(@t)[1])* 10 + PByte(@t)[2])* 10 + PByte(@t)[3]);
+            Inc(p, 4);
+          end;
+      end;
+    4:
+      while p + 4 < pEnd do
+        begin
+          t := PDWord(p)^;
+          {$IFDEF ENDIAN_BIG}SwapEndian(t);{$ENDIF ENDIAN_BIG}
+          if t and DWord($F0F0F0F0) <> DWord($30303030) then exit(False);
+          t -= DWord($30303030);
+          if (t + DWord($06060606)) and DWord($F0F0F0F0) <> 0 then exit(False);
+          v := v * 10000 + ((((PByte(@t)[0] * 10) + PByte(@t)[1])* 10 + PByte(@t)[2])* 10 + PByte(@t)[3]);
+          Inc(p, 4);
+        end;
+  else
+  end;
+{$ELSE CPU64}
+  if SizeUInt(p) and 3 = 0 then
+    while p + 4 < pEnd do
+      begin
+        t := PDWord(p)^;
+        {$IFDEF ENDIAN_BIG}SwapEndian(t);{$ENDIF ENDIAN_BIG}
+        if t and DWord($F0F0F0F0) <> DWord($30303030) then exit(False);
+        t -= DWord($30303030);
+        if (t + DWord($06060606)) and DWord($F0F0F0F0) <> 0 then exit(False);
+        v := v * 10000 + ((((PByte(@t)[0] * 10) + PByte(@t)[1])* 10 + PByte(@t)[2])* 10 + PByte(@t)[3]);
+        Inc(p, 4);
+      end;
+{$ENDIF CPU64}
 {$POP}
-{$ENDIF FPC_REQUIRES_PROPER_ALIGNMENT}
+{$ELSE FPC_REQUIRES_PROPER_ALIGNMENT}
 {$IFDEF CPU64}
   while p + 8 < pEnd do
     begin
-      tQ := PUInt64(p)^;
+      tQ := PQWord(p)^;
       {$IFDEF ENDIAN_BIG}SwapEndian(t8);{$ENDIF ENDIAN_BIG}
-      if tQ and QWord($F0F0F0F0F0F0F0F0) <> QWord($3030303030303030) then
-        exit(False);
+      if tQ and QWord($F0F0F0F0F0F0F0F0) <> QWord($3030303030303030) then exit(False);
       tQ -= QWord($3030303030303030);
-      if (tQ + QWord($0606060606060606)) and QWord($F0F0F0F0F0F0F0F0) <> 0 then
-        exit(False);
+      if (tQ + QWord($0606060606060606)) and QWord($F0F0F0F0F0F0F0F0) <> 0 then exit(False);
       v := v * 100000000 + (((((((PByte(@tQ)[0] * 10) + PByte(@tQ)[1])* 10 + PByte(@tQ)[2])* 10 +
         PByte(@tQ)[3])* 10 + PByte(@tQ)[4])* 10 + PByte(@tQ)[5])* 10 + PByte(@tQ)[6])* 10 + PByte(@tQ)[7];
       Inc(p, 8);
@@ -973,18 +1022,14 @@ begin
 {$ENDIF CPU64}
   while p + 4 < pEnd do
     begin
-      t := PUInt32(p)^;
+      t := PDWord(p)^;
       {$IFDEF ENDIAN_BIG}SwapEndian(t);{$ENDIF ENDIAN_BIG}
-      if t and DWord($F0F0F0F0) <> DWord($30303030) then
-        exit(False);
-      t := t - DWord($30303030);
-      if (t + DWord($06060606)) and DWord($F0F0F0F0) <> 0 then
-        exit(False);
+      if t and DWord($F0F0F0F0) <> DWord($30303030) then exit(False);
+      t -= DWord($30303030);
+      if (t + DWord($06060606)) and DWord($F0F0F0F0) <> 0 then exit(False);
       v := v * 10000 + ((((PByte(@t)[0] * 10) + PByte(@t)[1])* 10 + PByte(@t)[2])* 10 + PByte(@t)[3]);
       Inc(p, 4);
     end;
-{$IFDEF FPC_REQUIRES_PROPER_ALIGNMENT}
-  end;
 {$ENDIF FPC_REQUIRES_PROPER_ALIGNMENT}
   while p < pEnd do
     begin
@@ -1136,7 +1181,7 @@ begin
   v := Table[p^];
   pEnd := p + aCount;
   Inc(p);
-  I := 1;
+  I := 1; //todo: Count!!!
 {$IFDEF CPU64}
   while p < pEnd do
     begin
