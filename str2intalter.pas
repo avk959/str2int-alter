@@ -116,7 +116,8 @@ interface
     leading spaces and tabs are allowed;
     leading zeros are allowed;
     a minus sign is not allowed for unsigned integers;
-    numerical value MUST fit into the range of the type of aValue }
+    numerical value MUST fit into the range of the type of aValue;
+  if the TryDecimals2Int() returns False, then aValue is undefined }
   function TryDecimals2Int(const a: array of char; out aValue: QWord): Boolean;
   function TryDecimals2Int(const a: array of char; out aValue: Int64): Boolean;
 
@@ -130,7 +131,8 @@ interface
     leading spaces and tabs are allowed;
     leading zeros are allowed;
     a minus sign is not allowed for unsigned integers;
-    numerical value MUST fit into the range of the type of aValue }
+    numerical value MUST fit into the range of the type of aValue;
+  if the TryD...2Int() returns False, then aValue is undefined }
   function TryDChars2Int(const a: array of char; aSep: char; out aValue: LongWord): Boolean;
   function TryDChars2Int(const a: array of char; aSep: char; out aValue: LongInt): Boolean;
   function TryDChars2Int(const a: array of char; aSep: char; out aValue: QWord): Boolean;
