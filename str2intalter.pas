@@ -123,10 +123,10 @@ interface
   function TryDecimals2Int(const a: array of char; out aValue: QWord): Boolean;
   function TryDecimals2Int(const a: array of char; out aValue: Int64): Boolean;
 
-  function TryDecimals2IntDef(const a: array of char; aDefault: LongWord = 0): QWord;
+  function TryDecimals2DWordDef(const a: array of char; aDefault: LongWord = 0): QWord;
   function TryDecimals2IntDef(const a: array of char; aDefault: LongInt = 0): Int64;
-  function TryDecimals2IntDef(const a: array of char; aDefault: QWord = 0): QWord;
-  function TryDecimals2IntDef(const a: array of char; aDefault: Int64 = 0): Int64;
+  function TryDecimals2QWordDef(const a: array of char; aDefault: QWord = 0): QWord;
+  function TryDecimals2Int64Def(const a: array of char; aDefault: Int64 = 0): Int64;
 
 { some support for digit group separators, only for strings in decimal notation;
   aSep is a separator for groups of digits(for example an underscore or an apostrophe);
@@ -137,25 +137,25 @@ interface
     a minus sign is not allowed for unsigned integers;
     numerical value MUST fit into the range of the type of aValue;
   if the TryD...2Int() returns False, then aValue is undefined }
-  function TryDChars2Int(const a: array of char; aSep: char; out aValue: LongWord): Boolean;
-  function TryDChars2Int(const a: array of char; aSep: char; out aValue: LongInt): Boolean;
-  function TryDChars2Int(const a: array of char; aSep: char; out aValue: QWord): Boolean;
-  function TryDChars2Int(const a: array of char; aSep: char; out aValue: Int64): Boolean;
+  function TryDgsChars2Int(const a: array of char; aSep: char; out aValue: LongWord): Boolean;
+  function TryDgsChars2Int(const a: array of char; aSep: char; out aValue: LongInt): Boolean;
+  function TryDgsChars2Int(const a: array of char; aSep: char; out aValue: QWord): Boolean;
+  function TryDgsChars2Int(const a: array of char; aSep: char; out aValue: Int64): Boolean;
 
-  function TryDChars2DWordDef(const a: array of char; aSep: char; aDefault: DWord = 0): DWord;
-  function TryDChars2IntDef(const a: array of char; aSep: char; aDefault: LongInt = 0): LongInt;
-  function TryDChars2QWordDef(const a: array of char; aSep: char; aDefault: QWord = 0): QWord;
-  function TryDChars2Int64Def(const a: array of char; aSep: char; aDefault: Int64 = 0): Int64;
+  function TryDgsChars2DWordDef(const a: array of char; aSep: char; aDefault: DWord = 0): DWord;
+  function TryDgsChars2IntDef(const a: array of char; aSep: char; aDefault: LongInt = 0): LongInt;
+  function TryDgsChars2QWordDef(const a: array of char; aSep: char; aDefault: QWord = 0): QWord;
+  function TryDgsChars2Int64Def(const a: array of char; aSep: char; aDefault: Int64 = 0): Int64;
 
-  function TryDStr2Int(const s: string; aSep: char; out aValue: LongWord): Boolean; inline;
-  function TryDStr2Int(const s: string; aSep: char; out aValue: LongInt): Boolean; inline;
-  function TryDStr2Int(const s: string; aSep: char; out aValue: QWord): Boolean; inline;
-  function TryDStr2Int(const s: string; aSep: char; out aValue: Int64): Boolean; inline;
+  function TryDgsStr2Int(const s: string; aSep: char; out aValue: LongWord): Boolean; inline;
+  function TryDgsStr2Int(const s: string; aSep: char; out aValue: LongInt): Boolean; inline;
+  function TryDgsStr2Int(const s: string; aSep: char; out aValue: QWord): Boolean; inline;
+  function TryDgsStr2Int(const s: string; aSep: char; out aValue: Int64): Boolean; inline;
 
-  function TryDStr2DWordDef(const s: string; aSep: char; aDefault: DWord = 0): DWord; inline;
-  function TryDStr2IntDef(const s: string; aSep: char; aDefault: LongInt = 0): LongInt; inline;
-  function TryDStr2QWordDef(const s: string; aSep: char; aDefault: QWord = 0): QWord; inline;
-  function TryDStr2Int64Def(const s: string; aSep: char; aDefault: Int64 = 0): Int64; inline;
+  function TryDgsStr2DWordDef(const s: string; aSep: char; aDefault: DWord = 0): DWord; inline;
+  function TryDgsStr2IntDef(const s: string; aSep: char; aDefault: LongInt = 0): LongInt; inline;
+  function TryDgsStr2QWordDef(const s: string; aSep: char; aDefault: QWord = 0): QWord; inline;
+  function TryDgsStr2Int64Def(const s: string; aSep: char; aDefault: Int64 = 0): Int64; inline;
 
 implementation
 {$Q-}{$B-}{$R-}{$J-}{$COPERATORS ON}{$POINTERMATH ON}
@@ -1207,7 +1207,7 @@ begin
       end;
 end;
 
-function TryDecimals2IntDef(const a: array of char; aDefault: LongWord): QWord;
+function TryDecimals2DWordDef(const a: array of char; aDefault: LongWord): QWord;
 begin
   if not TryDecimals2Int(a, Result) then
     Result := aDefault;
@@ -1219,13 +1219,13 @@ begin
     Result := aDefault;
 end;
 
-function TryDecimals2IntDef(const a: array of char; aDefault: QWord): QWord;
+function TryDecimals2QWordDef(const a: array of char; aDefault: QWord): QWord;
 begin
   if not TryDecimals2Int(a, Result) then
     Result := aDefault;
 end;
 
-function TryDecimals2IntDef(const a: array of char; aDefault: Int64): Int64;
+function TryDecimals2Int64Def(const a: array of char; aDefault: Int64): Int64;
 begin
   if not TryDecimals2Int(a, Result) then
     Result := aDefault;
@@ -1396,95 +1396,95 @@ begin
       end;
 end;
 
-function TryDChars2Int(const a: array of char; aSep: char; out aValue: LongWord): Boolean;
+function TryDgsChars2Int(const a: array of char; aSep: char; out aValue: LongWord): Boolean;
 begin
   if (Length(a) = 0) or (aSep < ' ') then exit(False);
   Result := specialize DecPChar2UInt<LongWord>(@a[0], Length(a), aSep, aValue);
 end;
 
-function TryDChars2Int(const a: array of char; aSep: char; out aValue: LongInt): Boolean;
+function TryDgsChars2Int(const a: array of char; aSep: char; out aValue: LongInt): Boolean;
 begin
   if (Length(a) = 0) or (aSep < ' ') then exit(False);
   Result := specialize DecPChar2SInt<DWord, LongInt>(@a[0], Length(a), aSep, aValue);
 end;
 
-function TryDChars2Int(const a: array of char; aSep: char; out aValue: QWord): Boolean;
+function TryDgsChars2Int(const a: array of char; aSep: char; out aValue: QWord): Boolean;
 begin
   if (Length(a) = 0) or (aSep < ' ') then exit(False);
   Result := specialize DecPChar2UInt<QWord>(@a[0], Length(a), aSep, aValue);
 end;
 
-function TryDChars2Int(const a: array of char; aSep: char; out aValue: Int64): Boolean;
+function TryDgsChars2Int(const a: array of char; aSep: char; out aValue: Int64): Boolean;
 begin
   if (Length(a) = 0) or (aSep < ' ') then exit(False);
   Result := specialize DecPChar2SInt<QWord, Int64>(@a[0], Length(a), aSep, aValue);
 end;
 
-function TryDChars2DWordDef(const a: array of char; aSep: char; aDefault: DWord): DWord;
+function TryDgsChars2DWordDef(const a: array of char; aSep: char; aDefault: DWord): DWord;
 begin
-  if not TryDChars2Int(a, aSep, Result) then
+  if not TryDgsChars2Int(a, aSep, Result) then
     Result := aDefault;
 end;
 
-function TryDChars2IntDef(const a: array of char; aSep: char; aDefault: LongInt): LongInt;
+function TryDgsChars2IntDef(const a: array of char; aSep: char; aDefault: LongInt): LongInt;
 begin
-  if not TryDChars2Int(a, aSep, Result) then
+  if not TryDgsChars2Int(a, aSep, Result) then
     Result := aDefault;
 end;
 
-function TryDChars2QWordDef(const a: array of char; aSep: char; aDefault: QWord): QWord;
+function TryDgsChars2QWordDef(const a: array of char; aSep: char; aDefault: QWord): QWord;
 begin
-  if not TryDChars2Int(a, aSep, Result) then
+  if not TryDgsChars2Int(a, aSep, Result) then
     Result := aDefault;
 end;
 
-function TryDChars2Int64Def(const a: array of char; aSep: char; aDefault: Int64): Int64;
+function TryDgsChars2Int64Def(const a: array of char; aSep: char; aDefault: Int64): Int64;
 begin
-  if not TryDChars2Int(a, aSep, Result) then
+  if not TryDgsChars2Int(a, aSep, Result) then
     Result := aDefault;
 end;
 
-function TryDStr2Int(const s: string; aSep: char; out aValue: LongWord): Boolean;
+function TryDgsStr2Int(const s: string; aSep: char; out aValue: LongWord): Boolean;
 begin
-  Result := TryDChars2Int(s[1..Length(s)], aSep, aValue);
+  Result := TryDgsChars2Int(s[1..Length(s)], aSep, aValue);
 end;
 
-function TryDStr2Int(const s: string; aSep: char; out aValue: LongInt): Boolean;
+function TryDgsStr2Int(const s: string; aSep: char; out aValue: LongInt): Boolean;
 begin
-  Result := TryDChars2Int(s[1..Length(s)], aSep, aValue);
+  Result := TryDgsChars2Int(s[1..Length(s)], aSep, aValue);
 end;
 
-function TryDStr2Int(const s: string; aSep: char; out aValue: QWord): Boolean;
+function TryDgsStr2Int(const s: string; aSep: char; out aValue: QWord): Boolean;
 begin
-  Result := TryDChars2Int(s[1..Length(s)], aSep, aValue);
+  Result := TryDgsChars2Int(s[1..Length(s)], aSep, aValue);
 end;
 
-function TryDStr2Int(const s: string; aSep: char; out aValue: Int64): Boolean;
+function TryDgsStr2Int(const s: string; aSep: char; out aValue: Int64): Boolean;
 begin
-  Result := TryDChars2Int(s[1..Length(s)], aSep, aValue);
+  Result := TryDgsChars2Int(s[1..Length(s)], aSep, aValue);
 end;
 
-function TryDStr2DWordDef(const s: string; aSep: char; aDefault: DWord): DWord;
+function TryDgsStr2DWordDef(const s: string; aSep: char; aDefault: DWord): DWord;
 begin
-  if not TryDChars2Int(s[1..Length(s)], aSep, Result) then
+  if not TryDgsChars2Int(s[1..Length(s)], aSep, Result) then
     Result := aDefault;
 end;
 
-function TryDStr2IntDef(const s: string; aSep: char; aDefault: LongInt): LongInt;
+function TryDgsStr2IntDef(const s: string; aSep: char; aDefault: LongInt): LongInt;
 begin
-  if not TryDChars2Int(s[1..Length(s)], aSep, Result) then
+  if not TryDgsChars2Int(s[1..Length(s)], aSep, Result) then
     Result := aDefault;
 end;
 
-function TryDStr2QWordDef(const s: string; aSep: char; aDefault: QWord): QWord;
+function TryDgsStr2QWordDef(const s: string; aSep: char; aDefault: QWord): QWord;
 begin
-  if not TryDChars2Int(s[1..Length(s)], aSep, Result) then
+  if not TryDgsChars2Int(s[1..Length(s)], aSep, Result) then
     Result := aDefault;
 end;
 
-function TryDStr2Int64Def(const s: string; aSep: char; aDefault: Int64): Int64;
+function TryDgsStr2Int64Def(const s: string; aSep: char; aDefault: Int64): Int64;
 begin
-  if not TryDChars2Int(s[1..Length(s)], aSep, Result) then
+  if not TryDgsChars2Int(s[1..Length(s)], aSep, Result) then
     Result := aDefault;
 end;
 
