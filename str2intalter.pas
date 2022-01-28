@@ -118,9 +118,13 @@ interface
     a minus sign is not allowed for unsigned integers;
     numerical value MUST fit into the range of the type of aValue;
   if the TryDecimals2Int() returns False, then aValue is undefined }
+  function TryDecimals2Int(const a: array of char; out aValue: LongWord): Boolean;
+  function TryDecimals2Int(const a: array of char; out aValue: LongInt): Boolean;
   function TryDecimals2Int(const a: array of char; out aValue: QWord): Boolean;
   function TryDecimals2Int(const a: array of char; out aValue: Int64): Boolean;
 
+  function TryDecimals2IntDef(const a: array of char; aDefault: LongWord = 0): QWord;
+  function TryDecimals2IntDef(const a: array of char; aDefault: LongInt = 0): Int64;
   function TryDecimals2IntDef(const a: array of char; aDefault: QWord = 0): QWord;
   function TryDecimals2IntDef(const a: array of char; aDefault: Int64 = 0): Int64;
 
@@ -935,6 +939,107 @@ begin
     Result := aDefault;
 end;
 
+function Decimals2UInt(p, pEnd: PChar; out aValue: DWord): Boolean;
+var
+  v, t, Count: DWord;
+begin
+  //here assumed p < pEnd and p^ not in [#9, ' ', '-', '+']
+  while p^ = '0' do
+    begin
+      Inc(p);
+      if p = pEnd then
+        begin
+          aValue := 0;
+          exit(True);
+        end;
+    end;
+  Count := pEnd - p;
+  if Count > 10 then exit(False);
+  v := 0;
+{$IFDEF FPC_REQUIRES_PROPER_ALIGNMENT}
+{$PUSH}{$WARN 4055 OFF}
+  if SizeUInt(p) and 3 = 0 then
+{$POP}
+{$ENDIF FPC_REQUIRES_PROPER_ALIGNMENT}
+  while p + 4 < pEnd do
+    begin
+      t := PDWord(p)^;
+      {$IFDEF ENDIAN_BIG}SwapEndian(t);{$ENDIF ENDIAN_BIG}
+      if t and DWord($F0F0F0F0) <> DWord($30303030) then exit(False);
+      t -= DWord($30303030);
+      if (t + DWord($06060606)) and DWord($F0F0F0F0) <> 0 then exit(False);
+      v := v * 10000 + DWord((((PByte(@t)[0] * 10) + PByte(@t)[1])* 10 + PByte(@t)[2])* 10 + PByte(@t)[3]);
+      Inc(p, 4);
+    end;
+  while p < pEnd do
+    begin
+      t := Table[p^];
+      if t > 9 then exit(False);
+      v := v * 10 + t;
+      Inc(p);
+    end;
+  if (Count = 10) and (v < 1000000000) then exit(False);
+  aValue := v;
+  Result := True;
+end;
+
+function TryDecimals2Int(const a: array of char; out aValue: LongWord): Boolean;
+var
+  p, pEnd: PChar;
+begin
+  if Length(a) = 0 then exit(False);
+  p := @a[0];
+  pEnd := p + Length(a);
+  while (p < pEnd) and (p^ in [#9, ' ']) do Inc(p);
+  if p = pEnd then exit(False);
+  if p^ = '+' then
+    begin
+      Inc(p);
+      if p = pEnd then exit(False);
+    end;
+  Result := Decimals2UInt(p, pEnd, aValue);
+end;
+
+function TryDecimals2Int(const a: array of char; out aValue: LongInt): Boolean;
+var
+  p, pEnd: PChar;
+  v: DWord;
+  IsNeg: Boolean;
+begin
+  if Length(a) = 0 then exit(False);
+  p := @a[0];
+  pEnd := p + Length(a);
+  while (p < pEnd) and (p^ in [#9, ' ']) do Inc(p);
+  if p = pEnd then exit(False);
+  if p^ = '-' then
+    begin
+      IsNeg := True;
+      Inc(p);
+      if p = pEnd then exit(False);
+    end
+  else
+    begin
+      IsNeg := False;
+      if p^ = '+' then
+        begin
+          Inc(p);
+          if p = pEnd then exit(False);
+        end;
+    end;
+  Result := Decimals2UInt(p, pEnd, v);
+  if Result then
+    if IsNeg then
+      begin
+        if v > DWord(2147483648) then exit(False);
+        aValue := -LongInt(v);
+      end
+    else
+      begin
+        if v > 2147483647 then exit(False);
+        aValue := LongInt(v);
+      end;
+end;
+
 function Decimals2UInt(p, pEnd: PChar; out aValue: QWord): Boolean;
 var
   v{$IFDEF CPU64}, tQ{$ENDIF}: QWord;
@@ -1100,6 +1205,18 @@ begin
         if v > QWord(9223372036854775807) then exit(False);
         aValue := Int64(v);
       end;
+end;
+
+function TryDecimals2IntDef(const a: array of char; aDefault: LongWord): QWord;
+begin
+  if not TryDecimals2Int(a, Result) then
+    Result := aDefault;
+end;
+
+function TryDecimals2IntDef(const a: array of char; aDefault: LongInt): Int64;
+begin
+  if not TryDecimals2Int(a, Result) then
+    Result := aDefault;
 end;
 
 function TryDecimals2IntDef(const a: array of char; aDefault: QWord): QWord;
