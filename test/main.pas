@@ -28,6 +28,8 @@ type
     procedure TestLongIntWithSeparator;
     procedure TestQWordWithSeparator;
     procedure TestInt64WithSeparator;
+    procedure TestDecimals2DWord;
+    procedure TestDecimals2LongInt;
     procedure TestDecimals2QWord;
     procedure TestDecimals2Int64;
   end;
@@ -1571,6 +1573,66 @@ begin
   AssertEquals('convert " -9_223_372_036_854_775_808", result', -9223372036854775808, i);
   s := '-9_223_372_036_854_775_809';
   AssertEquals('convert "-9_223_372_036_854_775_809"', False, TryDChars2Int(s[1..Length(s)], '_', i));
+end;
+
+procedure TTestS2I.TestDecimals2DWord;
+var
+  s: string;
+  d: DWord;
+begin
+  s := '';
+  AssertEquals('empty string', False, TryDecimals2Int(s[1..Length(s)], d));
+  s := '0_';
+  AssertEquals('convert "0_"', False, TryDecimals2Int(s[1..Length(s)], d));
+  s := '++10';
+  AssertEquals('convert "++10"', False, TryDecimals2Int(s[1..Length(s)], d));
+  s := ' -10';
+  AssertEquals('convert "-10"', False, TryDecimals2Int(s[1..Length(s)], d));
+  s := '  '#9#9'+00';
+  d := 42;
+  AssertEquals('convert "  #9#9+00"', True, TryDecimals2Int(s[1..Length(s)], d));
+  AssertEquals('convert "+00", result', 0,  d);
+  d := 42;
+  s := ' +10';
+  AssertEquals('convert " +10"', True, TryDecimals2Int(s[1..Length(s)], d));
+  AssertEquals('convert " +100", result', 10, d);
+  s := ' '#9'+4294967295';
+  AssertEquals('convert " #9+4294967295"', True, TryDecimals2Int(s[1..Length(s)], d));
+  AssertEquals('convert " #9+4294967295", result', 4294967295, d);
+  s := '4294967296';
+  AssertEquals('convert "4294967296"', False, TryDecimals2Int(s[1..Length(s)], d));
+end;
+
+procedure TTestS2I.TestDecimals2LongInt;
+var
+  s: string;
+  i: Integer;
+begin
+  s := '';
+  AssertEquals('empty string', False, TryDecimals2Int(s[1..Length(s)], i));
+  s := '--0';
+  AssertEquals('convert "_0"', False, TryDecimals2Int(s[1..Length(s)], i));
+  s := '-+0';
+  AssertEquals('convert "-+0"', False, TryDecimals2Int(s[1..Length(s)], i));
+  s := '0 ';
+  AssertEquals('convert "0 "', False, TryDecimals2Int(s[1..Length(s)], i));
+  s := ' '#9'-0000';
+  i := 42;
+  AssertEquals('convert " #9-0000"', True, TryDecimals2Int(s[1..Length(s)], i));
+  AssertEquals('convert " #9-0000", result', 0,  i);
+  s := '-1001';
+  AssertEquals('convert "-1001"', True, TryDecimals2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-1001", result', -1001, i);
+  s := '  2147483647';
+  AssertEquals('convert "  2147483647"', True, TryDecimals2Int(s[1..Length(s)], i));
+  AssertEquals('convert "  2147483647", result', 2147483647, i);
+  s := '2147483648';
+  AssertEquals('convert "2147483648"', False, TryDecimals2Int(s[1..Length(s)], i));
+  s := ' -2147483648';
+  AssertEquals('convert " -2147483648"', True, TryDecimals2Int(s[1..Length(s)], i));
+  AssertEquals('convert " -2147483648", result', -2147483648, i);
+  s := '-2147483649';
+  AssertEquals('convert "2147483649"', False, TryDecimals2Int(s[1..Length(s)], i));
 end;
 
 procedure TTestS2I.TestDecimals2QWord;
