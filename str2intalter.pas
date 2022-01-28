@@ -128,6 +128,16 @@ interface
   function TryDecimals2QWordDef(const a: array of char; aDefault: QWord = 0): QWord;
   function TryDecimals2Int64Def(const a: array of char; aDefault: Int64 = 0): Int64;
 
+  function TryDecStr2Int(const s: string; out aValue: LongWord): Boolean; inline;
+  function TryDecStr2Int(const s: string; out aValue: LongInt): Boolean; inline;
+  function TryDecStr2Int(const s: string; out aValue: QWord): Boolean; inline;
+  function TryDecStr2Int(const s: string; out aValue: Int64): Boolean; inline;
+
+  function TryDecStr2DWordDef(const s: string; aDefault: DWord = 0): DWord; inline;
+  function TryDecStr2IntDef(const s: string; aDefault: LongInt = 0): LongInt; inline;
+  function TryDecStr2QWordDef(const s: string; aDefault: QWord = 0): QWord; inline;
+  function TryDecStr2Int64Def(const s: string; aDefault: Int64 = 0): Int64; inline;
+
 { some support for digit group separators, only for strings in decimal notation;
   aSep is a separator for groups of digits(for example an underscore or an apostrophe);
     a separator can not be less than #32;
@@ -1228,6 +1238,50 @@ end;
 function TryDecimals2Int64Def(const a: array of char; aDefault: Int64): Int64;
 begin
   if not TryDecimals2Int(a, Result) then
+    Result := aDefault;
+end;
+
+function TryDecStr2Int(const s: string; out aValue: LongWord): Boolean;
+begin
+  Result := TryDecimals2Int(s[1..Length(s)], aValue);
+end;
+
+function TryDecStr2Int(const s: string; out aValue: LongInt): Boolean;
+begin
+  Result := TryDecimals2Int(s[1..Length(s)], aValue);
+end;
+
+function TryDecStr2Int(const s: string; out aValue: QWord): Boolean;
+begin
+  Result := TryDecimals2Int(s[1..Length(s)], aValue);
+end;
+
+function TryDecStr2Int(const s: string; out aValue: Int64): Boolean;
+begin
+  Result := TryDecimals2Int(s[1..Length(s)], aValue);
+end;
+
+function TryDecStr2DWordDef(const s: string; aDefault: DWord): DWord;
+begin
+  if not TryDecimals2Int(s[1..Length(s)], Result) then
+    Result := aDefault;
+end;
+
+function TryDecStr2IntDef(const s: string; aDefault: LongInt): LongInt;
+begin
+  if not TryDecimals2Int(s[1..Length(s)], Result) then
+    Result := aDefault;
+end;
+
+function TryDecStr2QWordDef(const s: string; aDefault: QWord): QWord;
+begin
+  if not TryDecimals2Int(s[1..Length(s)], Result) then
+    Result := aDefault;
+end;
+
+function TryDecStr2Int64Def(const s: string; aDefault: Int64): Int64;
+begin
+  if not TryDecimals2Int(s[1..Length(s)], Result) then
     Result := aDefault;
 end;
 
