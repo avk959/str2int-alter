@@ -16,6 +16,7 @@ type
   TTestS2I = class(TTestCase)
   published
     procedure Reject;
+    procedure RejectUni;
     procedure TestByte;
     procedure TestShortInt;
     procedure TestWord;
@@ -32,6 +33,10 @@ type
     procedure TestDecimals2LongInt;
     procedure TestDecimals2QWord;
     procedure TestDecimals2Int64;
+    procedure TestUniDWord;
+    procedure TestUniLongInt;
+    procedure TestUniQWord;
+    procedure TestUniInt64;
   end;
 
 implementation
@@ -106,6 +111,28 @@ begin
   AssertEquals('convert negative value to DWord', False, TryChars2Int(s[1..Length(s)], d));
   AssertEquals('convert negative value to QWord', False, TryChars2Int(s[1..Length(s)], q));
 end;
+
+procedure TTestS2I.RejectUni;
+var
+  s: unicodestring;
+  d: DWord;
+  i: LongInt;
+  q: QWord;
+  i64: Int64;
+begin
+  {$DEFINE AnyArgMacro := d}{$DEFINE TypMacro := 'DWord'}
+  FullRejectMacro;
+  {$DEFINE AnyArgMacro := i}{$DEFINE TypMacro := 'LongInt'}
+  FullRejectMacro;
+  {$DEFINE AnyArgMacro := q}{$DEFINE TypMacro := 'QWord'}
+  FullRejectMacro;
+  {$DEFINE AnyArgMacro := i64}{$DEFINE TypMacro := 'Int64'}
+  FullRejectMacro;
+  s := '-7';
+  AssertEquals('convert negative value to DWord', False, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert negative value to QWord', False, TryChars2Int(s[1..Length(s)], q));
+end;
+
 {$POP}
 
 procedure TTestS2I.TestByte;
@@ -1693,6 +1720,670 @@ begin
   AssertEquals('convert " -9223372036854775808", result', -9223372036854775808, i);
   s := '-9223372036854775809';
   AssertEquals('convert "9223372036854775809"', False, TryDecimals2Int(s[1..Length(s)], i));
+end;
+
+procedure TTestS2I.TestUniDWord;
+var
+  s: unicodestring;
+  d: DWord;
+begin
+  s := '+0000';
+  d := 42;
+  AssertEquals('convert "+0000" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "+0000" to DWord, result', 0, d);
+
+  s := '+4294967295';
+  AssertEquals('convert "+4294967295" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "+4294967295" to DWord, result', 4294967295, d);
+  s := '4294967296';
+  AssertEquals('convert "4294967296" to DWord', False, TryChars2Int(s[1..Length(s)], d));
+  s := #32#9'4294967295';
+  AssertEquals('convert #32#9"4294967295" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert 4294967295 to DWord, result', 4294967295, d);
+
+  s := '+%11111111111111111111111111111111';
+  AssertEquals('convert "+%11111111111111111111111111111111" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "+%11111111111111111111111111111111" to DWord, result', 4294967295, d);
+  s := '%100000000000000000000000000000000';
+  AssertEquals('convert "%100000000000000000000000000000000" to DWord', False, TryChars2Int(s[1..Length(s)], d));
+  s := #32#9'%11111111111111111111111111111111';
+  AssertEquals('convert "#32#9%11111111111111111111111111111111" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "#32#9%11111111111111111111111111111111" to DWord, result', 4294967295, d);
+  s := '%0000';
+  AssertEquals('convert "%0000" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "%0000" to DWord, result', 0, d);
+{$IFNDEF NEED_VAL_COMPAT}
+  s := '+0b11111111111111111111111111111111';
+  AssertEquals('convert "+0b11111111111111111111111111111111" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "+0b11111111111111111111111111111111" to DWord, result', 4294967295, d);
+  s := '0b100000000000000000000000000000000';
+  AssertEquals('convert "0b100000000000000000000000000000000" to DWord', False, TryChars2Int(s[1..Length(s)], d));
+  s := #32#9'0b0011111111111111111111111111111111';
+  AssertEquals('convert "#32#90b0011111111111111111111111111111111" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "#32#90b0011111111111111111111111111111111" to DWord, result', 4294967295, d);
+  s := '0b0000';
+  AssertEquals('convert "0b0000" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "0b0000" to DWord, result', 0, d);
+
+  s := '+0B11111111111111111111111111111111';
+  AssertEquals('convert "+0B11111111111111111111111111111111" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "+0B11111111111111111111111111111111" to DWord, result', 4294967295, d);
+  s := '0B100000000000000000000000000000000';
+  AssertEquals('convert "0B100000000000000000000000000000000" to DWord', False, TryChars2Int(s[1..Length(s)], d));
+  s := #32#9'+0B0011111111111111111111111111111111';
+  AssertEquals('convert "#32#9+0B0011111111111111111111111111111111" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "#32#9+0B0011111111111111111111111111111111" to DWord, result', 4294967295, d);
+  s := '0B0000';
+  AssertEquals('convert "0B0000" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "0B0000" to DWord, result', 0, d);
+{$ENDIF NEED_VAL_COMPAT}
+  s := '+&37777777777';
+  AssertEquals('convert "+&37777777777" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "+&37777777777" to DWord, result', 4294967295, d);
+  s := '&40000000000';
+  AssertEquals('convert "&40000000000" to DWord', False, TryChars2Int(s[1..Length(s)], d));
+  s := #32#9'&0037777777777';
+  AssertEquals('convert "#32#9&0037777777777" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "#32#9&0037777777777" to DWord, result', 4294967295, d);
+  s := '&0000';
+  AssertEquals('convert "&0000" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "&0000" to DWord, result', 0, d);
+{$IFNDEF NEED_VAL_COMPAT}
+  s := '+037777777777';
+  AssertEquals('convert "+037777777777" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "+037777777777" to DWord, result', 4294967295, d);
+  s := '040000000000';
+  AssertEquals('convert "040000000000" to DWord', False, TryChars2Int(s[1..Length(s)], d));
+  s := #32#9'037777777777';
+  AssertEquals('convert "#32#90177777" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "#32#90177777" to DWord, result', 4294967295, d);
+
+  s := '+0o37777777777';
+  AssertEquals('convert "+0o37777777777" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "+0o37777777777" to DWord, result', 4294967295, d);
+  s := '0o40000000000';
+  AssertEquals('convert "0o40000000000" to DWord', False, TryChars2Int(s[1..Length(s)], d));
+  s := #32#9'0o0037777777777';
+  AssertEquals('convert "#32#90o0037777777777" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "#32#90o0037777777777" to DWord, result', 4294967295, d);
+  s := '0o0000';
+  AssertEquals('convert "0o0000" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "0o0000" to DWord, result', 0, d);
+
+  s := '+0O37777777777';
+  AssertEquals('convert "+0O37777777777" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "+0O37777777777" to DWord, result', 4294967295, d);
+  s := '0O40000000000';
+  AssertEquals('convert "0O40000000000" to DWord', False, TryChars2Int(s[1..Length(s)], d));
+  s := #32#9'0O0037777777777';
+  AssertEquals('convert "#32#90O0037777777777" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "#32#90O0037777777777" to DWord, result', 4294967295, d);
+  s := '0O0000';
+  AssertEquals('convert "0O0000" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "0O0000" to DWord, result', 0, d);
+{$ENDIF NEED_VAL_COMPAT}
+  s := '+$ffffffff';
+  AssertEquals('convert "+$ffffffff" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "+$ffffffff" to DWord, result', 4294967295, d);
+  s := '$100000000';
+  AssertEquals('convert "$100000000" to DWord', False, TryChars2Int(s[1..Length(s)], d));
+  s := #32#9'$00ffffffff';
+  AssertEquals('convert "#32#9$00ffffffff" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "#32#9$00ffffffff" to DWord, result', 4294967295, d);
+  s := '$0000';
+  AssertEquals('convert "$0000" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "$0000" to DWord, result', 0, d);
+
+  s := '+0xffffffff';
+  AssertEquals('convert "+0xffffffff" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "+0xffffffff" to DWord, result', 4294967295, d);
+  s := '0x100000000';
+  AssertEquals('convert "0x100000000" to DWord', False, TryChars2Int(s[1..Length(s)], d));
+  s := #32#9'0x00ffffffff';
+  AssertEquals('convert "#32#90x00ffffffff" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "#32#90x00ffffffff" to DWord, result', 4294967295, d);
+  s := '0x0000';
+  AssertEquals('convert "0x0000" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "0x0000" to DWord, result', 0, d);
+
+  s := '+0Xffffffff';
+  AssertEquals('convert "+0Xffffffff" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "+0Xffffffff" to DWord, result', 4294967295, d);
+  s := '0X100000000';
+  AssertEquals('convert "0X100000000" to DWord', False, TryChars2Int(s[1..Length(s)], d));
+  s := #32#9'0X00ffffffff';
+  AssertEquals('convert "#32#90X00ffffffff" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "#32#90X00ffffffff" to DWord, result', 4294967295, d);
+  s := '0X0000';
+  AssertEquals('convert "0X0000" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "0X0000" to DWord, result', 0, d);
+
+  s := '+xffffffff';
+  AssertEquals('convert "+xffffffff" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "+xffffffff" to DWord, result', 4294967295, d);
+  s := 'x100000000';
+  AssertEquals('convert "x100000000" to DWord', False, TryChars2Int(s[1..Length(s)], d));
+  s := #32#9'x00ffffffff';
+  AssertEquals('convert "#32#9x00ffffffff" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "#32#9x00ffffffff" to DWord, result', 4294967295, d);
+  s := 'x0000';
+  AssertEquals('convert "x0000" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "x0000" to DWord, result', 0, d);
+
+  s := '+Xffffffff';
+  AssertEquals('convert "+Xffffffff" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "+Xffffffff" to DWord, result', 4294967295, d);
+  s := 'X100000000';
+  AssertEquals('convert "0X100000000" to DWord', False, TryChars2Int(s[1..Length(s)], d));
+  s := #32#9'X00ffffffff';
+  AssertEquals('convert "#32#9X00ffffffff" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "#32#9X00ffffffff" to DWord, result', 4294967295, d);
+  s := 'X0000';
+  AssertEquals('convert "X0000" to DWord', True, TryChars2Int(s[1..Length(s)], d));
+  AssertEquals('convert "X0000" to DWord, result', 0, d);
+end;
+
+procedure TTestS2I.TestUniLongInt;
+var
+  s: unicodestring;
+  i: LongInt;
+begin
+  s := '+0000';
+  i := 42;
+  AssertEquals('convert "+0000" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "+0000" to LongInt, result', 0, i);
+
+  s := #9#32'-0000';
+  i := 42;
+  AssertEquals('convert "#9#32-0000" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "#9#32-0000" to LongInt, result', 0, i);
+
+  s := '+2147483647';
+  AssertEquals('convert "+2147483647" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "+2147483647" to LongInt, result', 2147483647, i);
+  s := '2147483648';
+  AssertEquals('convert "2147483648" to LongInt', False, TryChars2Int(s[1..Length(s)], i));
+  s := '-2147483648';
+  AssertEquals('convert "-2147483648" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-2147483648" to LongInt, result', -2147483648, i);
+  s := '-2147483649';
+  AssertEquals('convert "-2147483649" to LongInt', False, TryChars2Int(s[1..Length(s)], i));
+
+  s := '%1111111111111111111111111111111';
+  AssertEquals('convert "%1111111111111111111111111111111" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "%1111111111111111111111111111111" to LongInt, result', 2147483647, i);
+  s := '%10000000000000000000000000000000';
+  AssertEquals('convert "%10000000000000000000000000000000" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "%10000000000000000000000000000000" to LongInt, result', -2147483648, i);
+  s := '-%10000000000000000000000000000000';
+  AssertEquals('convert "-%10000000000000000000000000000000" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-%10000000000000000000000000000000" to LongInt, result', -2147483648, i);
+  s := '-%10000000000000000000000000000001';
+  AssertEquals('convert "-%10000000000000000000000000000001" to LongInt', False, TryChars2Int(s[1..Length(s)], i));
+{$IFNDEF NEED_VAL_COMPAT}
+  s := '0b1111111111111111111111111111111';
+  AssertEquals('convert "0b1111111111111111111111111111111" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "0b1111111111111111111111111111111" to LongInt, result', 2147483647, i);
+  s := '0b10000000000000000000000000000000';
+  AssertEquals('convert "0b10000000000000000000000000000000" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "0b10000000000000000000000000000000" to LongInt, result', -2147483648, i);
+  s := '-0b10000000000000000000000000000000';
+  AssertEquals('convert "-0b10000000000000000000000000000000" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-0b10000000000000000000000000000000" to LongInt, result', -2147483648, i);
+  s := '-0b10000000000000000000000000000001';
+  AssertEquals('convert "-0b10000000000000000000000000000001" to LongInt', False, TryChars2Int(s[1..Length(s)], i));
+
+  s := '0B1111111111111111111111111111111';
+  AssertEquals('convert "0B1111111111111111111111111111111" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "0B1111111111111111111111111111111" to LongInt, result', 2147483647, i);
+  s := '0B10000000000000000000000000000000';
+  AssertEquals('convert "0B10000000000000000000000000000000" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "0B10000000000000000000000000000000" to LongInt, result', -2147483648, i);
+  s := '-0B10000000000000000000000000000000';
+  AssertEquals('convert "-0B10000000000000000000000000000000" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-0B10000000000000000000000000000000" to LongInt, result', -2147483648, i);
+  s := '-0B10000000000000000000000000000001';
+  AssertEquals('convert "-0B10000000000000000000000000000001" to LongInt', False, TryChars2Int(s[1..Length(s)], i));
+
+  s := '017777777777';
+  AssertEquals('convert "017777777777" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "017777777777" to LongInt, result', 2147483647, i);
+  s := '020000000000';
+  AssertEquals('convert "020000000000" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "020000000000" to LongInt, result', -2147483648, i);
+  s := '-020000000000';
+  AssertEquals('convert "-020000000000" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-020000000000" to LongInt, result', -2147483648, i);
+  s := '-0120000000001';
+  AssertEquals('convert "-0120000000001" to LongInt', False, TryChars2Int(s[1..Length(s)], i));
+{$ENDIF NEED_VAL_COMPAT}
+  s := '&17777777777';
+  AssertEquals('convert "&17777777777" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "&17777777777" to LongInt, result', 2147483647, i);
+  s := '&20000000000';
+  AssertEquals('convert "&20000000000" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "&20000000000" to LongInt, result', -2147483648, i);
+  s := '-&20000000000';
+  AssertEquals('convert "-&20000000000" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-&20000000000" to LongInt, result', -2147483648, i);
+  s := '-&20000000001';
+  AssertEquals('convert "-&20000000001" to LongInt', False, TryChars2Int(s[1..Length(s)], i));
+{$IFNDEF NEED_VAL_COMPAT}
+  s := '0o17777777777';
+  AssertEquals('convert "0o17777777777" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "0o17777777777" to LongInt, result', 2147483647, i);
+  s := '0o20000000000';
+  AssertEquals('convert "0o20000000000" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "0o20000000000" to LongInt, result', -2147483648, i);
+  s := '-0o20000000000';
+  AssertEquals('convert "-0o20000000000" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-0o20000000000" to LongInt, result', -2147483648, i);
+  s := '-0o20000000001';
+  AssertEquals('convert "-0o20000000001" to LongInt', False, TryChars2Int(s[1..Length(s)], i));
+
+  s := '0O17777777777';
+  AssertEquals('convert "0O17777777777" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "0O17777777777" to LongInt, result', 2147483647, i);
+  s := '0O20000000000';
+  AssertEquals('convert "0O20000000000" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "0O20000000000" to LongInt, result', -2147483648, i);
+  s := '-0O20000000000';
+  AssertEquals('convert "-0O20000000000" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-0O20000000000" to LongInt, result', -2147483648, i);
+  s := '-0O20000000001';
+  AssertEquals('convert "-0O120000000001" to LongInt', False, TryChars2Int(s[1..Length(s)], i));
+{$ENDIF NEED_VAL_COMPAT}
+  s := '$7fffffff';
+  AssertEquals('convert "$7fffffff" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "$7fffffff" to LongInt, result', 2147483647, i);
+  s := '$80000000';
+  AssertEquals('convert "$80000000" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "$80000000" to LongInt, result', -2147483648, i);
+  s := '-$80000000';
+  AssertEquals('convert "-$80000000" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-$80000000" to LongInt, result', -2147483648, i);
+  s := '-$80000001';
+  AssertEquals('convert "-$80000001" to LongInt', False, TryChars2Int(s[1..Length(s)], i));
+
+  s := '0x7fffffff';
+  AssertEquals('convert "0x7fffffff" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "0x7fffffff" to LongInt, result', 2147483647, i);
+  s := '0x80000000';
+  AssertEquals('convert "0x80000000" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "0x80000000" to LongInt, result', -2147483648, i);
+  s := '-0x80000000';
+  AssertEquals('convert "-0x80000000" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-0x80000000" to LongInt, result', -2147483648, i);
+  s := '-0x$80000001';
+  AssertEquals('convert "-0x$80000001" to LongInt', False, TryChars2Int(s[1..Length(s)], i));
+
+  s := '0X7fffffff';
+  AssertEquals('convert "0X7fffffff" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "0X7fffffff" to LongInt, result', 2147483647, i);
+  s := '0X80000000';
+  AssertEquals('convert "0X80000000" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "0X80000000" to LongInt, result', -2147483648, i);
+  s := '-0X80000000';
+  AssertEquals('convert "-0X80000000" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-0X80000000" to LongInt, result', -2147483648, i);
+  s := '-0X$80000001';
+  AssertEquals('convert "-0X$80000001" to LongInt', False, TryChars2Int(s[1..Length(s)], i));
+
+  s := 'x7fffffff';
+  AssertEquals('convert "x7fffffff" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "x7fffffff" to LongInt, result', 2147483647, i);
+  s := 'x80000000';
+  AssertEquals('convert "x80000000" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "x80000000" to LongInt, result', -2147483648, i);
+  s := '-x80000000';
+  AssertEquals('convert "-x80000000" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-x80000000" to LongInt, result', -2147483648, i);
+  s := '-x$80000001';
+  AssertEquals('convert "-x$80000001" to LongInt', False, TryChars2Int(s[1..Length(s)], i));
+
+  s := 'X7fffffff';
+  AssertEquals('convert "X7fffffff" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "X7fffffff" to LongInt, result', 2147483647, i);
+  s := 'X80000000';
+  AssertEquals('convert "X80000000" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "X80000000" to LongInt, result', -2147483648, i);
+  s := '-X80000000';
+  AssertEquals('convert "-X80000000" to LongInt', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-X80000000" to LongInt, result', -2147483648, i);
+  s := '-X$80000001';
+  AssertEquals('convert "-X$80000001" to LongInt', False, TryChars2Int(s[1..Length(s)], i));
+end;
+
+procedure TTestS2I.TestUniQWord;
+var
+  s: unicodestring;
+  q: QWord;
+begin
+  s := '+0000';
+  q := 42;
+  AssertEquals('convert "+0000" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "+0000" to DWord, result', 0, q);
+
+  s := '+18446744073709551615';
+  AssertEquals('convert "+18446744073709551615" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "+18446744073709551615" to DWord, result', 18446744073709551615, q);
+  s := '18446744073709551616';
+  AssertEquals('convert "18446744073709551616" to DWord', False, TryChars2Int(s[1..Length(s)], q));
+  s := #32#9'18446744073709551615';
+  AssertEquals('convert #32#9"18446744073709551615" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert 18446744073709551615 to DWord, result', 18446744073709551615, q);
+
+  s := '+%1111111111111111111111111111111111111111111111111111111111111111';
+  AssertEquals('convert "+%1111111111111111111111111111111111111111111111111111111111111111" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "+%1111111111111111111111111111111111111111111111111111111111111111" to DWord, result', 18446744073709551615, q);
+  s := '%10000000000000000000000000000000000000000000000000000000000000000';
+  AssertEquals('convert "%10000000000000000000000000000000000000000000000000000000000000000" to DWord', False, TryChars2Int(s[1..Length(s)], q));
+  s := #32#9'%1111111111111111111111111111111111111111111111111111111111111111';
+  AssertEquals('convert "#32#9%1111111111111111111111111111111111111111111111111111111111111111" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "#32#9%1111111111111111111111111111111111111111111111111111111111111111" to DWord, result', 18446744073709551615, q);
+  s := '%0000';
+  AssertEquals('convert "%0000" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "%0000" to DWord, result', 0, q);
+{$IFNDEF NEED_VAL_COMPAT}
+  s := '+0b1111111111111111111111111111111111111111111111111111111111111111';
+  AssertEquals('convert "+0b1111111111111111111111111111111111111111111111111111111111111111" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "+0b1111111111111111111111111111111111111111111111111111111111111111" to DWord, result', 18446744073709551615, q);
+  s := '0b10000000000000000000000000000000000000000000000000000000000000000';
+  AssertEquals('convert "0b10000000000000000000000000000000000000000000000000000000000000000" to DWord', False, TryChars2Int(s[1..Length(s)], q));
+  s := #32#9'0b001111111111111111111111111111111111111111111111111111111111111111';
+  AssertEquals('convert "#32#90b001111111111111111111111111111111111111111111111111111111111111111" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "#32#90b001111111111111111111111111111111111111111111111111111111111111111" to DWord, result', 18446744073709551615, q);
+  s := '0b0000';
+  AssertEquals('convert "0b0000" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "0b0000" to DWord, result', 0, q);
+
+  s := '+0B1111111111111111111111111111111111111111111111111111111111111111';
+  AssertEquals('convert "+0B1111111111111111111111111111111111111111111111111111111111111111" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "+0B1111111111111111111111111111111111111111111111111111111111111111" to DWord, result', 18446744073709551615, q);
+  s := '0B10000000000000000000000000000000000000000000000000000000000000000';
+  AssertEquals('convert "0B10000000000000000000000000000000000000000000000000000000000000000" to DWord', False, TryChars2Int(s[1..Length(s)], q));
+  s := #32#9'+0B001111111111111111111111111111111111111111111111111111111111111111';
+  AssertEquals('convert "#32#9+0B001111111111111111111111111111111111111111111111111111111111111111" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "#32#9+0B001111111111111111111111111111111111111111111111111111111111111111" to DWord, result', 18446744073709551615, q);
+  s := '0B0000';
+  AssertEquals('convert "0B0000" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "0B0000" to DWord, result', 0, q);
+{$ENDIF NEED_VAL_COMPAT}
+  s := '+&1777777777777777777777';
+  AssertEquals('convert "+&1777777777777777777777" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "+&1777777777777777777777" to DWord, result', 18446744073709551615, q);
+  s := '&2000000000000000000000';
+  AssertEquals('convert "&2000000000000000000000" to DWord', False, TryChars2Int(s[1..Length(s)], q));
+  s := #32#9'&001777777777777777777777';
+  AssertEquals('convert "#32#9&001777777777777777777777" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "#32#9&001777777777777777777777" to DWord, result', 18446744073709551615, q);
+  s := '&0000';
+  AssertEquals('convert "&0000" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "&0000" to DWord, result', 0, q);
+{$IFNDEF NEED_VAL_COMPAT}
+  s := '+01777777777777777777777';
+  AssertEquals('convert "+01777777777777777777777" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "+01777777777777777777777" to DWord, result', 18446744073709551615, q);
+  s := '02000000000000000000000';
+  AssertEquals('convert "02000000000000000000000" to DWord', False, TryChars2Int(s[1..Length(s)], q));
+  s := #32#9'01777777777777777777777';
+  AssertEquals('convert "#32#901777777777777777777777" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "#32#901777777777777777777777" to DWord, result', 18446744073709551615, q);
+
+  s := '+0o1777777777777777777777';
+  AssertEquals('convert "+0o1777777777777777777777" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "+0o1777777777777777777777" to DWord, result', 18446744073709551615, q);
+  s := '0o2000000000000000000000';
+  AssertEquals('convert "0o2000000000000000000000" to DWord', False, TryChars2Int(s[1..Length(s)], q));
+  s := #32#9'0o001777777777777777777777';
+  AssertEquals('convert "#32#90o001777777777777777777777" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "#32#90o001777777777777777777777" to DWord, result', 18446744073709551615, q);
+  s := '0o0000';
+  AssertEquals('convert "0o0000" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "0o0000" to DWord, result', 0, q);
+
+  s := '+0O1777777777777777777777';
+  AssertEquals('convert "+0O1777777777777777777777" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "+0O1777777777777777777777" to DWord, result', 18446744073709551615, q);
+  s := '0O2000000000000000000000';
+  AssertEquals('convert "0O2000000000000000000000" to DWord', False, TryChars2Int(s[1..Length(s)], q));
+  s := #32#9'0O001777777777777777777777';
+  AssertEquals('convert "#32#90O001777777777777777777777" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "#32#90O001777777777777777777777" to DWord, result', 18446744073709551615, q);
+  s := '0O0000';
+  AssertEquals('convert "0O0000" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "0O0000" to DWord, result', 0, q);
+{$ENDIF NEED_VAL_COMPAT}
+  s := '+$ffffffffffffffff';
+  AssertEquals('convert "+$ffffffffffffffff" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "+$ffffffffffffffff" to DWord, result', 18446744073709551615, q);
+  s := '$10000000000000000';
+  AssertEquals('convert "$10000000000000000" to DWord', False, TryChars2Int(s[1..Length(s)], q));
+  s := #32#9'$00ffffffffffffffff';
+  AssertEquals('convert "#32#9$00ffffffffffffffff" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "#32#9$00ffffffffffffffff" to DWord, result', 18446744073709551615, q);
+  s := '$0000';
+  AssertEquals('convert "$0000" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "$0000" to DWord, result', 0, q);
+
+  s := '+0xffffffffffffffff';
+  AssertEquals('convert "+0xffffffffffffffff" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "+0xffffffffffffffff" to DWord, result', 18446744073709551615, q);
+  s := '0x10000000000000000';
+  AssertEquals('convert "0x10000000000000000" to DWord', False, TryChars2Int(s[1..Length(s)], q));
+  s := #32#9'0x00ffffffffffffffff';
+  AssertEquals('convert "#32#90x00ffffffffffffffff" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "#32#90x00ffffffffffffffff" to DWord, result', 18446744073709551615, q);
+  s := '0x0000';
+  AssertEquals('convert "0x0000" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "0x0000" to DWord, result', 0, q);
+
+  s := '+0Xffffffffffffffff';
+  AssertEquals('convert "+0Xffffffffffffffff" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "+0Xffffffffffffffff" to DWord, result', 18446744073709551615, q);
+  s := '0X10000000000000000';
+  AssertEquals('convert "0X10000000000000000" to DWord', False, TryChars2Int(s[1..Length(s)], q));
+  s := #32#9'0X00ffffffffffffffff';
+  AssertEquals('convert "#32#90X00ffffffffffffffff" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "#32#90X00ffffffffffffffff" to DWord, result', 18446744073709551615, q);
+  s := '0X0000';
+  AssertEquals('convert "0X0000" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "0X0000" to DWord, result', 0, q);
+
+  s := '+xffffffffffffffff';
+  AssertEquals('convert "+xffffffffffffffff" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "+xffffffffffffffff" to DWord, result', 18446744073709551615, q);
+  s := 'x10000000000000000';
+  AssertEquals('convert "x10000000000000000" to DWord', False, TryChars2Int(s[1..Length(s)], q));
+  s := #32#9'x00ffffffffffffffff';
+  AssertEquals('convert "#32#9x00ffffffffffffffff" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "#32#9x00ffffffffffffffff" to DWord, result', 18446744073709551615, q);
+  s := 'x0000';
+  AssertEquals('convert "x0000" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "x0000" to DWord, result', 0, q);
+
+  s := '+Xffffffffffffffff';
+  AssertEquals('convert "+Xffffffffffffffff" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "+Xffffffffffffffff" to DWord, result', 18446744073709551615, q);
+  s := 'X10000000000000000';
+  AssertEquals('convert "0X10000000000000000" to DWord', False, TryChars2Int(s[1..Length(s)], q));
+  s := #32#9'X00ffffffffffffffff';
+  AssertEquals('convert "#32#9X00ffffffffffffffff" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "#32#9X00ffffffffffffffff" to DWord, result', 18446744073709551615, q);
+  s := 'X0000';
+  AssertEquals('convert "X0000" to DWord', True, TryChars2Int(s[1..Length(s)], q));
+  AssertEquals('convert "X0000" to DWord, result', 0, q);
+end;
+
+procedure TTestS2I.TestUniInt64;
+var
+  s: unicodestring;
+  i: Int64;
+begin
+  s := '+0000';
+  i := 42;
+  AssertEquals('convert "+0000" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "+0000" to Int64, result', 0, i);
+
+  s := #9#32'-0000';
+  i := 42;
+  AssertEquals('convert "#9#32-0000" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "#9#32-0000" to Int64, result', 0, i);
+
+  s := '+9223372036854775807';
+  AssertEquals('convert "+9223372036854775807" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "+9223372036854775807" to Int64, result', 9223372036854775807, i);
+  s := '9223372036854775808';
+  AssertEquals('convert "9223372036854775808" to Int64', False, TryChars2Int(s[1..Length(s)], i));
+  s := '-9223372036854775808';
+  AssertEquals('convert "-9223372036854775808" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-9223372036854775808" to Int64, result', -9223372036854775808, i);
+  s := '-9223372036854775809';
+  AssertEquals('convert "-9223372036854775809" to Int64', False, TryChars2Int(s[1..Length(s)], i));
+
+  s := '%111111111111111111111111111111111111111111111111111111111111111';
+  AssertEquals('convert "%111111111111111111111111111111111111111111111111111111111111111" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "%111111111111111111111111111111111111111111111111111111111111111" to Int64, result', 9223372036854775807, i);
+  s := '%1000000000000000000000000000000000000000000000000000000000000000';
+  AssertEquals('convert "%1000000000000000000000000000000000000000000000000000000000000000" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "%1000000000000000000000000000000000000000000000000000000000000000" to Int64, result', -9223372036854775808, i);
+  s := '-%1000000000000000000000000000000000000000000000000000000000000000';
+  AssertEquals('convert "-%1000000000000000000000000000000000000000000000000000000000000000" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-%1000000000000000000000000000000000000000000000000000000000000000" to Int64, result', -9223372036854775808, i);
+  s := '-%1000000000000000000000000000000000000000000000000000000000000001';
+  AssertEquals('convert "-%1000000000000000000000000000000000000000000000000000000000000001" to Int64', False, TryChars2Int(s[1..Length(s)], i));
+{$IFNDEF NEED_VAL_COMPAT}
+  s := '0b111111111111111111111111111111111111111111111111111111111111111';
+  AssertEquals('convert "0b111111111111111111111111111111111111111111111111111111111111111" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "0b111111111111111111111111111111111111111111111111111111111111111" to Int64, result', 9223372036854775807, i);
+  s := '0b1000000000000000000000000000000000000000000000000000000000000000';
+  AssertEquals('convert "0b1000000000000000000000000000000000000000000000000000000000000000" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "0b1000000000000000000000000000000000000000000000000000000000000000" to Int64, result', -9223372036854775808, i);
+  s := '-0b1000000000000000000000000000000000000000000000000000000000000000';
+  AssertEquals('convert "-0b1000000000000000000000000000000000000000000000000000000000000000" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-0b1000000000000000000000000000000000000000000000000000000000000000" to Int64, result', -9223372036854775808, i);
+  s := '-0b1000000000000000000000000000000000000000000000000000000000000001';
+  AssertEquals('convert "-0b1000000000000000000000000000000000000000000000000000000000000001" to Int64', False, TryChars2Int(s[1..Length(s)], i));
+
+  s := '0B111111111111111111111111111111111111111111111111111111111111111';
+  AssertEquals('convert "0B111111111111111111111111111111111111111111111111111111111111111" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "0B111111111111111111111111111111111111111111111111111111111111111" to Int64, result', 9223372036854775807, i);
+  s := '0B1000000000000000000000000000000000000000000000000000000000000000';
+  AssertEquals('convert "0B1000000000000000000000000000000000000000000000000000000000000000" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "0B1000000000000000000000000000000000000000000000000000000000000000" to Int64, result', -9223372036854775808, i);
+  s := '-0B1000000000000000000000000000000000000000000000000000000000000000';
+  AssertEquals('convert "-0B1000000000000000000000000000000000000000000000000000000000000000" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-0B1000000000000000000000000000000000000000000000000000000000000000" to Int64, result', -9223372036854775808, i);
+  s := '-0B1000000000000000000000000000000000000000000000000000000000000001';
+  AssertEquals('convert "-0B1000000000000000000000000000000000000000000000000000000000000001" to Int64', False, TryChars2Int(s[1..Length(s)], i));
+
+  s := '0777777777777777777777';
+  AssertEquals('convert "0777777777777777777777" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "0777777777777777777777" to Int64, result', 9223372036854775807, i);
+  s := '01000000000000000000000';
+  AssertEquals('convert "01000000000000000000000" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "01000000000000000000000" to Int64, result', -9223372036854775808, i);
+  s := '-01000000000000000000000';
+  AssertEquals('convert "-01000000000000000000000" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-01000000000000000000000" to Int64, result', -9223372036854775808, i);
+  s := '-01000000000000000000001';
+  AssertEquals('convert "-01000000000000000000001" to Int64', False, TryChars2Int(s[1..Length(s)], i));
+{$ENDIF NEED_VAL_COMPAT}
+  s := '&777777777777777777777';
+  AssertEquals('convert "&777777777777777777777" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "&777777777777777777777" to Int64, result', 9223372036854775807, i);
+  s := '&1000000000000000000000';
+  AssertEquals('convert "&1000000000000000000000" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "&1000000000000000000000" to Int64, result', -9223372036854775808, i);
+  s := '-&1000000000000000000000';
+  AssertEquals('convert "-&1000000000000000000000" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-&1000000000000000000000" to Int64, result', -9223372036854775808, i);
+  s := '-&1000000000000000000001';
+  AssertEquals('convert "-&1000000000000000000001" to Int64', False, TryChars2Int(s[1..Length(s)], i));
+{$IFNDEF NEED_VAL_COMPAT}
+  s := '0o777777777777777777777';
+  AssertEquals('convert "0o777777777777777777777" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "0o777777777777777777777" to Int64, result', 9223372036854775807, i);
+  s := '0o1000000000000000000000';
+  AssertEquals('convert "0o1000000000000000000000" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "0o1000000000000000000000" to Int64, result', -9223372036854775808, i);
+  s := '-0o1000000000000000000000';
+  AssertEquals('convert "-0o1000000000000000000000" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-0o1000000000000000000000" to Int64, result', -9223372036854775808, i);
+  s := '-0o1000000000000000000001';
+  AssertEquals('convert "-0o1000000000000000000001" to Int64', False, TryChars2Int(s[1..Length(s)], i));
+
+  s := '0O777777777777777777777';
+  AssertEquals('convert "0O777777777777777777777" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "0O777777777777777777777" to Int64, result', 9223372036854775807, i);
+  s := '0O1000000000000000000000';
+  AssertEquals('convert "0O1000000000000000000000" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "0O1000000000000000000000" to Int64, result', -9223372036854775808, i);
+  s := '-0O1000000000000000000000';
+  AssertEquals('convert "-0O1000000000000000000000" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-0O1000000000000000000000" to Int64, result', -9223372036854775808, i);
+  s := '-0O1000000000000000000001';
+  AssertEquals('convert "-0O1000000000000000000001" to Int64', False, TryChars2Int(s[1..Length(s)], i));
+{$ENDIF NEED_VAL_COMPAT}
+  s := '$7fffffffffffffff';
+  AssertEquals('convert "$7fffffffffffffff" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "$7fffffffffffffff" to Int64, result', 9223372036854775807, i);
+  s := '$8000000000000000';
+  AssertEquals('convert "$8000000000000000" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "$8000000000000000" to Int64, result', -9223372036854775808, i);
+  s := '-$8000000000000000';
+  AssertEquals('convert "-$8000000000000000" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-$8000000000000000" to Int64, result', -9223372036854775808, i);
+  s := '-$8000000000000001';
+  AssertEquals('convert "-$8000000000000001" to Int64', False, TryChars2Int(s[1..Length(s)], i));
+
+  s := '0x7fffffffffffffff';
+  AssertEquals('convert "0x7fffffffffffffff" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "0x7fffffffffffffff" to Int64, result', 9223372036854775807, i);
+  s := '0x8000000000000000';
+  AssertEquals('convert "0x8000000000000000" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "0x8000000000000000" to Int64, result', -9223372036854775808, i);
+  s := '-0x8000000000000000';
+  AssertEquals('convert "-0x8000000000000000" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-0x8000000000000000" to Int64, result', -9223372036854775808, i);
+  s := '-0x$8000000000000001';
+  AssertEquals('convert "-0x$8000000000000001" to Int64', False, TryChars2Int(s[1..Length(s)], i));
+
+  s := '0X7fffffffffffffff';
+  AssertEquals('convert "0X7fffffffffffffff" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "0X7fffffffffffffff" to Int64, result', 9223372036854775807, i);
+  s := '0X8000000000000000';
+  AssertEquals('convert "0X8000000000000000" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "0X8000000000000000" to Int64, result', -9223372036854775808, i);
+  s := '-0X8000000000000000';
+  AssertEquals('convert "-0X8000000000000000" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-0X8000000000000000" to Int64, result', -9223372036854775808, i);
+  s := '-0X$8000000000000001';
+  AssertEquals('convert "-0X$8000000000000001" to Int64', False, TryChars2Int(s[1..Length(s)], i));
+
+  s := 'x7fffffffffffffff';
+  AssertEquals('convert "x7fffffffffffffff" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "x7fffffffffffffff" to Int64, result', 9223372036854775807, i);
+  s := 'x8000000000000000';
+  AssertEquals('convert "x8000000000000000" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "x8000000000000000" to Int64, result', -9223372036854775808, i);
+  s := '-x8000000000000000';
+  AssertEquals('convert "-x8000000000000000" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-x8000000000000000" to Int64, result', -9223372036854775808, i);
+  s := '-x$8000000000000001';
+  AssertEquals('convert "-x$8000000000000001" to Int64', False, TryChars2Int(s[1..Length(s)], i));
+
+  s := 'X7fffffffffffffff';
+  AssertEquals('convert "X7fffffffffffffff" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "X7fffffffffffffff" to Int64, result', 9223372036854775807, i);
+  s := 'X8000000000000000';
+  AssertEquals('convert "X8000000000000000" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "X8000000000000000" to Int64, result', -9223372036854775808, i);
+  s := '-X8000000000000000';
+  AssertEquals('convert "-X8000000000000000" to Int64', True, TryChars2Int(s[1..Length(s)], i));
+  AssertEquals('convert "-X8000000000000000" to Int64, result', -9223372036854775808, i);
+  s := '-X$8000000000000001';
+  AssertEquals('convert "-X$8000000000000001" to Int64', False, TryChars2Int(s[1..Length(s)], i));
 end;
 
 
