@@ -167,6 +167,27 @@ interface
   function TryDgsStr2QWordDef(const s: string; aSep: char; aDefault: QWord = 0): QWord; inline;
   function TryDgsStr2Int64Def(const s: string; aSep: char; aDefault: Int64 = 0): Int64; inline;
 
+{ some support for unicodestring }
+  function TryChars2Int(const a: array of widechar; out aValue: LongWord): Boolean;
+  function TryChars2Int(const a: array of widechar; out aValue: LongInt): Boolean;
+  function TryChars2Int(const a: array of widechar; out aValue: QWord): Boolean;
+  function TryChars2Int(const a: array of widechar; out aValue: Int64): Boolean;
+
+  function TryChars2DWordDef(const a: array of widechar; aDefault: DWord = 0): DWord;
+  function TryChars2IntDef(const a: array of widechar; aDefault: LongInt = 0): LongInt;
+  function TryChars2QWordDef(const a: array of widechar; aDefault: QWord = 0): QWord;
+  function TryChars2Int64Def(const a: array of widechar; aDefault: Int64 = 0): Int64;
+
+  function TryStr2Int(const s: unicodestring; out aValue: LongWord): Boolean; inline;
+  function TryStr2Int(const s: unicodestring; out aValue: LongInt): Boolean; inline;
+  function TryStr2Int(const s: unicodestring; out aValue: QWord): Boolean; inline;
+  function TryStr2Int(const s: unicodestring; out aValue: Int64): Boolean; inline;
+
+  function TryStr2DWordDef(const s: unicodestring; aDefault: DWord = 0): DWord; inline;
+  function TryStr2IntDef(const s: unicodestring; aDefault: LongInt = 0): LongInt; inline;
+  function TryStr2QWordDef(const s: unicodestring; aDefault: QWord = 0): QWord; inline;
+  function TryStr2Int64Def(const s: unicodestring; aDefault: Int64 = 0): Int64; inline;
+
 implementation
 {$Q-}{$B-}{$R-}{$J-}{$COPERATORS ON}{$POINTERMATH ON}
 
@@ -949,6 +970,7 @@ begin
     Result := aDefault;
 end;
 
+{$PUSH}{$WARN 4079 OFF}
 function Decimals2UInt(p, pEnd: PChar; out aValue: DWord): Boolean;
 var
   v, t, Count: DWord;
@@ -992,6 +1014,7 @@ begin
   aValue := v;
   Result := True;
 end;
+{$POP}
 
 function TryDecimals2Int(const a: array of char; out aValue: LongWord): Boolean;
 var
@@ -1539,6 +1562,341 @@ end;
 function TryDgsStr2Int64Def(const s: string; aSep: char; aDefault: Int64): Int64;
 begin
   if not TryDgsChars2Int(s[1..Length(s)], aSep, Result) then
+    Result := aDefault;
+end;
+
+function PWChar2UIntImpl(p: PWideChar; aCount: SizeInt; aRadix: TRadix; out aValue: DWord): Boolean;
+var
+{$IFDEF CPU64}
+  v: QWord;
+  Base, t: DWord;
+{$ELSE}
+  Base, v, t: DWord;
+{$ENDIF}
+  pEnd: PWideChar;
+begin
+  if aCount < 1 then exit(False);
+  while p^ = '0' do
+    begin
+      Inc(p);
+      Dec(aCount);
+      if aCount = 0 then
+        begin
+          aValue := 0;
+          exit(True);
+        end;
+    end;
+  if aCount > Int32MaxLen[aRadix] then exit(False);
+  if p^ > #$ff then exit(False);
+  Base := Bases[aRadix];
+  v := Table[p^];
+  if v >= Base then exit(False);
+  pEnd := p + aCount;
+  Inc(p);
+{$IFDEF CPU64}
+  while p < pEnd do
+    begin
+      if p^ > #$ff then exit(False);
+      t := Table[p^];
+      if t >= Base then exit(False);
+      v := v * Base + t;
+      Inc(p);
+    end;
+  if v > High(DWord) then exit(False);
+{$ELSE}
+  if (aCount < Int32MaxLen[aRadix]) or (aRadix in [rxBin, rxHex]) then
+    while p < pEnd do
+      begin
+        if p^ > #$ff then exit(False);
+        t := Table[p^];
+        if t >= Base then exit(False);
+        v := v * Base + t;
+        Inc(p);
+      end
+  else
+    begin
+      while p < pEnd - 1 do
+        begin
+          if p^ > #$ff then exit(False);
+          t := Table[p^];
+          if t >= Base then exit(False);
+          v := v * Base + t;
+          Inc(p);
+        end;
+      if v > Int32PrevMax[aRadix] then exit(False);
+      if p^ > #$ff then exit(False);
+      t := Table[p^];
+      if t >= Base then exit(False);
+      v := v * Base + t;
+      if v < t then exit(False);
+    end;
+{$ENDIF}
+  aValue := v;
+  Result := True;
+end;
+
+{$PUSH}{$WARN 4079 OFF}
+function PWChar2UIntImpl(p: PWideChar; aCount: SizeInt; aRadix: TRadix; out aValue: QWord): Boolean;
+var
+  v: QWord;
+  Base, t: DWord;
+  pEnd: PWideChar;
+{$IFNDEF CPU64}
+  pDw: PWideChar;
+{$ENDIF}
+begin
+  if aCount < 1 then exit(False);
+  while p^ = '0' do
+    begin
+      Inc(p);
+      Dec(aCount);
+      if aCount = 0 then
+        begin
+          aValue := 0;
+          exit(True);
+        end;
+    end;
+  if aCount > Int64MaxLen[aRadix] then exit(False);
+  if p^ > #$ff then exit(False);
+  Base := Bases[aRadix];
+  v := Table[p^];
+  if v >= Base then exit(False);
+  pEnd := p + aCount;
+{$IFNDEF CPU64}
+  pDw := p + Pred(Int32MaxLen[aRadix]);
+{$ENDIF}
+  Inc(p);
+{$IFDEF CPU64}
+  if (aCount < Int64MaxLen[aRadix]) or (aRadix in [rxBin, rxHex]) then
+    while p < pEnd do
+      begin
+        if p^ > #$ff then exit(False);
+        t := Table[p^];
+        if t >= Base then exit(False);
+        v := v * Base + t;
+        Inc(p);
+      end
+  else
+    begin
+      while p < pEnd - 1 do
+        begin
+          if p^ > #$ff then exit(False);
+          t := Table[p^];
+          if t >= Base then exit(False);
+          v := v * Base + t;
+          Inc(p);
+        end;
+      if v > Int64PrevMax[aRadix] then exit(False);
+      if p^ > #$ff then exit(False);
+      t := Table[p^];
+      if t >= Base then exit(False);
+      v := v * Base + t;
+      if v < t then exit(False);
+    end;
+{$ELSE}
+  if (aCount < Int64MaxLen[aRadix]) or (aRadix in [rxBin, rxHex]) then
+    while p < pEnd do
+      begin
+        if p^ > #$ff then exit(False);
+        t := Table[p^];
+        if t >= Base then exit(False);
+        if p < pDw then
+          v := DWord(v) * Base + t
+        else
+          v := v * Base + t;
+        Inc(p);
+      end
+  else
+    begin
+      while p < pDw do
+        begin
+          if p^ > #$ff then exit(False);
+          t := Table[p^];
+          if t >= Base then exit(False);
+          v := DWord(v) * Base + t;
+            Inc(p);
+        end;
+      while p < pEnd - 1 do
+        begin
+          if p^ > #$ff then exit(False);
+          t := Table[p^];
+          if t >= Base then exit(False);
+          v := v * Base + t;
+          Inc(p);
+        end;
+      if v > Int64PrevMax[aRadix] then exit(False);
+      if p^ > #$ff then exit(False);
+      t := Table[p^];
+      if t >= Base then exit(False);
+      v := v * Base + t;
+      if v < t then exit(False);
+    end;
+{$ENDIF}
+  aValue := v;
+  Result := True;
+end;
+{$POP}
+
+{$MACRO ON}
+generic function PWChar2UInt<T>(p: PWideChar; aCount: SizeInt; out aValue: T): Boolean;
+begin
+  Result := False;
+  //here assumed aCount > 0
+  while (p^ = #9) or (p^ = ' ') do
+    begin
+      Inc(p);
+      Dec(aCount);
+      if aCount = 0 then exit;
+    end;
+  if p^ = '+' then
+    begin
+      Inc(p);
+      Dec(aCount);
+      if aCount = 0 then exit;
+    end;
+  {$DEFINE TypeMacro :=}{$DEFINE SetDecTrueMacro :=}
+  {$DEFINE ConvFunMacro := PWChar2UIntImpl}{$DEFINE OutMacro := aValue}
+  MainCaseMacro;
+end;
+
+generic function PWChar2SInt<TUInt, TSint>(p: PWideChar; aCount: SizeInt; out aValue: TSint): Boolean;
+var
+  v: TUInt;
+  IsNeg, IsDec: Boolean;
+begin
+  Result := False;
+  //here assumed aCount > 0
+  while (p^ = #9) or (p^ = ' ') do
+    begin
+      Inc(p);
+      Dec(aCount);
+      if aCount = 0 then exit;
+    end;
+  if p^ = '-' then
+    begin
+      IsNeg := True;
+      Inc(p);
+      Dec(aCount);
+      if aCount = 0 then exit;
+    end
+  else
+    begin
+      IsNeg := False;
+      if p^ = '+' then
+        begin
+          Inc(p);
+          Dec(aCount);
+          if aCount = 0 then exit;
+        end;
+    end;
+  v := 0;
+  IsDec := False;
+  {$DEFINE TypeMacro :=}{$DEFINE SetDecTrueMacro := IsDec := True;}
+  {$DEFINE ConvFunMacro := PWChar2UIntImpl}{$DEFINE OutMacro := v}
+  MainCaseMacro;
+  if Result then
+    if IsNeg then
+      begin
+        if v > Succ(TUInt(High(TSint))) then exit(False);
+        aValue := -TSint(v);
+      end
+    else
+      begin
+        if IsDec and (v > TUInt(High(TSint))) then exit(False);
+        aValue := TSint(v);
+      end;
+end;
+{$MACRO OFF}
+
+function TryChars2Int(const a: array of widechar; out aValue: LongWord): Boolean;
+begin
+  if Length(a) = 0 then exit(False);
+  Result := specialize PWChar2UInt<DWord>(@a[0], Length(a), aValue);
+end;
+
+function TryChars2Int(const a: array of widechar; out aValue: LongInt): Boolean;
+begin
+  if Length(a) = 0 then exit(False);
+  Result :=  specialize PWChar2SInt<DWord, LongInt>(@a[0], Length(a), aValue);
+end;
+
+function TryChars2Int(const a: array of widechar; out aValue: QWord): Boolean;
+begin
+  if Length(a) = 0 then exit(False);
+  Result := specialize PWChar2UInt<QWord>(@a[0], Length(a), aValue);
+end;
+
+function TryChars2Int(const a: array of widechar; out aValue: Int64): Boolean;
+begin
+  if Length(a) = 0 then exit(False);
+  Result :=  specialize PWChar2SInt<QWord, Int64>(@a[0], Length(a), aValue);
+end;
+
+function TryChars2DWordDef(const a: array of widechar; aDefault: DWord): DWord;
+begin
+  if not TryChars2Int(a, Result) then
+    Result := aDefault;
+end;
+
+function TryChars2IntDef(const a: array of widechar; aDefault: LongInt): LongInt;
+begin
+  if not TryChars2Int(a, Result) then
+    Result := aDefault;
+end;
+
+function TryChars2QWordDef(const a: array of widechar; aDefault: QWord): QWord;
+begin
+  if not TryChars2Int(a, Result) then
+    Result := aDefault;
+end;
+
+function TryChars2Int64Def(const a: array of widechar; aDefault: Int64): Int64;
+begin
+  if not TryChars2Int(a, Result) then
+    Result := aDefault;
+end;
+
+function TryStr2Int(const s: unicodestring; out aValue: LongWord): Boolean;
+begin
+  Result := TryChars2Int(s[1..Length(s)], aValue);
+end;
+
+function TryStr2Int(const s: unicodestring; out aValue: LongInt): Boolean;
+begin
+  Result := TryChars2Int(s[1..Length(s)], aValue);
+end;
+
+function TryStr2Int(const s: unicodestring; out aValue: QWord): Boolean;
+begin
+  Result := TryChars2Int(s[1..Length(s)], aValue);
+end;
+
+function TryStr2Int(const s: unicodestring; out aValue: Int64): Boolean;
+begin
+  Result := TryChars2Int(s[1..Length(s)], aValue);
+end;
+
+function TryStr2DWordDef(const s: unicodestring; aDefault: DWord): DWord;
+begin
+  if not TryChars2Int(s[1..Length(s)], Result) then
+    Result := aDefault;
+end;
+
+function TryStr2IntDef(const s: unicodestring; aDefault: LongInt): LongInt;
+begin
+  if not TryChars2Int(s[1..Length(s)], Result) then
+    Result := aDefault;
+end;
+
+function TryStr2QWordDef(const s: unicodestring; aDefault: QWord): QWord;
+begin
+  if not TryChars2Int(s[1..Length(s)], Result) then
+    Result := aDefault;
+end;
+
+function TryStr2Int64Def(const s: unicodestring; aDefault: Int64): Int64;
+begin
+  if not TryChars2Int(s[1..Length(s)], Result) then
     Result := aDefault;
 end;
 
