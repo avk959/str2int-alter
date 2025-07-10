@@ -124,7 +124,7 @@ interface
   function TryDecimals2Int(const a: array of char; out aValue: Int64): Boolean;
 
   function TryDecimals2DWordDef(const a: array of char; aDefault: LongWord = 0): DWord;
-  function TryDecimals2IntDef(const a: array of char; aDefault: LongInt = 0): Int64;
+  function TryDecimals2IntDef(const a: array of char; aDefault: LongInt = 0): LongInt;
   function TryDecimals2QWordDef(const a: array of char; aDefault: QWord = 0): QWord;
   function TryDecimals2Int64Def(const a: array of char; aDefault: Int64 = 0): Int64;
 
@@ -1246,7 +1246,7 @@ begin
     Result := aDefault;
 end;
 
-function TryDecimals2IntDef(const a: array of char; aDefault: LongInt): Int64;
+function TryDecimals2IntDef(const a: array of char; aDefault: LongInt): LongInt;
 begin
   if not TryDecimals2Int(a, Result) then
     Result := aDefault;
